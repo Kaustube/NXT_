@@ -6,23 +6,19 @@ import {
   X,
   Camera,
   Edit3,
-  MapPin,
   GraduationCap,
   Flame,
   Trophy,
   Users,
   MessageSquare,
-  Link2,
-  Github,
-  Twitter,
-  Linkedin,
-  Instagram,
   Plus,
   Check,
   Hash,
   Briefcase,
   Star,
   Calendar,
+  Globe,
+  Lock,
 } from "lucide-react";
 import { format } from "date-fns";
 
@@ -37,6 +33,7 @@ type Profile = {
   interests: string[];
   college_id: string | null;
   avatar_url: string | null;
+  profile_visibility: "public" | "private";
 };
 
 type Streak = {
@@ -68,6 +65,7 @@ export default function ProfilePage() {
   const [stats, setStats] = useState<Stats>({ connections: 0, messages: 0, events: 0, submissions: 0 });
   const [avatarUploading, setAvatarUploading] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [profileVisibility, setProfileVisibility] = useState<"public" | "private">("public");
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -103,6 +101,7 @@ export default function ProfilePage() {
       setSkills(profile.skills ?? []);
       setInterests(profile.interests ?? []);
       setAvatarUrl(profile.avatar_url);
+      setProfileVisibility(profile.profile_visibility ?? "public");
       if (profile.college_id) {
         const { data: c } = await supabase.from("colleges").select("name").eq("id", profile.college_id).maybeSingle();
         setCollegeName(c?.name ?? null);
@@ -156,7 +155,7 @@ export default function ProfilePage() {
     if (!user) return;
     const { error } = await supabase
       .from("profiles")
-      .update({ bio, skills, interests, display_name: displayName })
+      .update({ bio, skills, interests, display_name: displayName, profile_visibility: profileVisibility })
       .eq("user_id", user.id);
     if (error) toast.error(error.message);
     else {
@@ -257,7 +256,26 @@ export default function ProfilePage() {
               />
             </div>
 
-            <div className="flex gap-2 mt-2">
+            <div className="flex gap-2 mt-2 flex-wrap">
+              {/* Privacy toggle */}
+              <button
+                onClick={async () => {
+                  const next = profileVisibility === "public" ? "private" : "public";
+                  setProfileVisibility(next);
+                  if (user) {
+                    await supabase.from("profiles").update({ profile_visibility: next }).eq("user_id", user.id);
+                    toast.success(next === "private" ? "Profile set to private" : "Profile set to public");
+                  }
+                }}
+                className={`h-9 px-3 rounded-lg border text-xs font-semibold flex items-center gap-1.5 transition-colors ${
+                  profileVisibility === "private"
+                    ? "border-orange-500/50 bg-orange-500/10 text-orange-400"
+                    : "border-border text-muted-foreground hover:bg-[hsl(var(--surface-2))]"
+                }`}
+              >
+                {profileVisibility === "private" ? <Lock className="h-3.5 w-3.5" /> : <Globe className="h-3.5 w-3.5" />}
+                {profileVisibility === "private" ? "Private" : "Public"}
+              </button>
               {editing ? (
                 <>
                   <button

@@ -12,11 +12,56 @@ import {
   Play,
   BarChart3,
   Zap,
+  GraduationCap,
+  Lock,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
 import { format } from "date-fns";
+
+// College-specific course data
+const COLLEGE_COURSES: Record<string, Array<{ id: string; name: string; prof: string; time: string; progress: number; color: string }>> = {
+  BU: [
+    { id: "CSET244", name: "Design & Analysis of Algorithms", prof: "Dr. Vijayant Pawar", time: "Mon, Wed 10:00 AM", progress: 65, color: "bg-blue-500" },
+    { id: "CSET210", name: "Design Thinking and Innovation", prof: "Dr. Urvashi Sugandh", time: "Tue, Thu 2:00 PM", progress: 72, color: "bg-purple-500" },
+    { id: "CSET203", name: "Microprocessors and Computer Networks", prof: "Mr. Kishan Yumnam", time: "Mon, Fri 4:00 PM", progress: 55, color: "bg-green-500" },
+    { id: "CSET209", name: "Operating System", prof: "Dr. Akhil Kumar", time: "Wed, Fri 9:00 AM", progress: 48, color: "bg-orange-500" },
+  ],
+  IITD: [
+    { id: "COL106", name: "Data Structures & Algorithms", prof: "Prof. Subhashis Banerjee", time: "Mon, Wed, Fri 9:00 AM", progress: 70, color: "bg-blue-500" },
+    { id: "COL216", name: "Computer Architecture", prof: "Prof. Anshul Kumar", time: "Tue, Thu 11:00 AM", progress: 58, color: "bg-red-500" },
+    { id: "COL334", name: "Computer Networks", prof: "Prof. Huzur Saran", time: "Mon, Wed 2:00 PM", progress: 45, color: "bg-green-500" },
+    { id: "COL351", name: "Analysis & Design of Algorithms", prof: "Prof. Naveen Garg", time: "Tue, Thu 3:30 PM", progress: 62, color: "bg-yellow-500" },
+  ],
+  DU: [
+    { id: "CS301", name: "Theory of Computation", prof: "Dr. Pankaj Jalote", time: "Mon, Wed 10:00 AM", progress: 55, color: "bg-blue-500" },
+    { id: "CS302", name: "Database Management Systems", prof: "Dr. Saroj Kaushik", time: "Tue, Thu 1:00 PM", progress: 68, color: "bg-purple-500" },
+    { id: "CS303", name: "Software Engineering", prof: "Dr. Vasudha Bhatnagar", time: "Mon, Fri 3:00 PM", progress: 40, color: "bg-green-500" },
+    { id: "CS304", name: "Artificial Intelligence", prof: "Dr. Naveen Kumar", time: "Wed, Fri 11:00 AM", progress: 75, color: "bg-orange-500" },
+  ],
+};
+
+const COLLEGE_ASSIGNMENTS: Record<string, Array<{ title: string; course: string; due: string; status: string; type: string; grade?: string }>> = {
+  BU: [
+    { title: "Project 1: Algorithm Analysis Report", course: "CSET244", due: "Tomorrow, 11:59 PM", status: "pending", type: "Project" },
+    { title: "Design Thinking Case Study", course: "CSET210", due: "Apr 20, 11:59 PM", status: "pending", type: "Assignment" },
+    { title: "MCN Lab Assignment 3", course: "CSET203", due: "Apr 22, 11:59 PM", status: "submitted", type: "Homework" },
+    { title: "OS Concepts Quiz", course: "CSET209", due: "Apr 18, 9:00 AM", status: "graded", type: "Quiz", grade: "9.5/10" },
+  ],
+  IITD: [
+    { title: "Assignment 2: Red-Black Trees", course: "COL106", due: "Tomorrow, 11:59 PM", status: "pending", type: "Assignment" },
+    { title: "Lab 3: Pipeline Simulation", course: "COL216", due: "Apr 21, 11:59 PM", status: "submitted", type: "Lab" },
+    { title: "Minor Project: Chat Protocol", course: "COL334", due: "Apr 25, 11:59 PM", status: "pending", type: "Project" },
+    { title: "Quiz 2: Greedy Algorithms", course: "COL351", due: "Apr 19, 9:00 AM", status: "graded", type: "Quiz", grade: "18/20" },
+  ],
+  DU: [
+    { title: "Assignment 3: NFA to DFA Conversion", course: "CS301", due: "Tomorrow, 11:59 PM", status: "pending", type: "Assignment" },
+    { title: "Lab 4: SQL Queries", course: "CS302", due: "Apr 20, 11:59 PM", status: "submitted", type: "Lab" },
+    { title: "SRS Document", course: "CS303", due: "Apr 23, 11:59 PM", status: "pending", type: "Project" },
+    { title: "Mid-sem: Search Algorithms", course: "CS304", due: "Apr 18, 9:00 AM", status: "graded", type: "Quiz", grade: "28/30" },
+  ],
+};
 
 type Challenge = {
   id: string;
@@ -62,12 +107,36 @@ export default function LMS() {
   const [language, setLanguage] = useState("python");
   const [submitting, setSubmitting] = useState(false);
   const [streak, setStreak] = useState(0);
+  const [collegeCode, setCollegeCode] = useState<string | null>(null);
+  const [collegeName, setCollegeName] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user) return;
     void loadChallenges();
     void loadStreak();
+    void loadCollege();
   }, [user]);
+
+  async function loadCollege() {
+    if (!user) return;
+    const { data: prof } = await supabase
+      .from("profiles")
+      .select("college_id")
+      .eq("user_id", user.id)
+      .maybeSingle();
+    if ((prof as any)?.college_id) {
+      const { data: col } = await supabase
+        .from("colleges")
+        .select("short_code, name")
+        .eq("id", (prof as any).college_id)
+        .maybeSingle();
+      setCollegeCode((col as any)?.short_code ?? null);
+      setCollegeName((col as any)?.name ?? null);
+    }
+  }
+
+  const courses = collegeCode ? (COLLEGE_COURSES[collegeCode] ?? COLLEGE_COURSES["BU"]) : null;
+  const assignments = collegeCode ? (COLLEGE_ASSIGNMENTS[collegeCode] ?? COLLEGE_ASSIGNMENTS["BU"]) : null;
 
   async function loadChallenges() {
     if (!user) return;
@@ -267,7 +336,15 @@ export default function LMS() {
             <div className="h-10 w-10 rounded-xl bg-primary/20 text-primary grid place-items-center">
               <BookOpen className="h-5 w-5" />
             </div>
-            <h1 className="text-3xl font-bold">Learning Management</h1>
+            <div>
+              <h1 className="text-3xl font-bold">Learning Management</h1>
+              {collegeName && (
+                <div className="flex items-center gap-1.5 mt-0.5">
+                  <GraduationCap className="h-3.5 w-3.5 text-muted-foreground" />
+                  <span className="text-sm text-muted-foreground">{collegeName}</span>
+                </div>
+              )}
+            </div>
           </div>
           <p className="text-muted-foreground">Courses, assignments, and daily coding challenges.</p>
         </header>
@@ -289,13 +366,15 @@ export default function LMS() {
         </div>
 
         {activeTab === "courses" && (
+          !courses ? (
+            <div className="panel p-12 text-center">
+              <Lock className="h-10 w-10 mx-auto mb-3 text-muted-foreground opacity-30" />
+              <p className="font-semibold mb-1">College not linked</p>
+              <p className="text-sm text-muted-foreground">Your account isn't linked to a college. Update your profile to see your courses.</p>
+            </div>
+          ) : (
           <div className="grid md:grid-cols-2 gap-4">
-            {[
-              { id: "CSET244", name: "Design & Analysis of Algorithms", prof: "Dr. Vijayant Pawar", time: "Mon, Wed 10:00 AM", progress: 65, color: "bg-blue-500" },
-              { id: "CSET210", name: "Design Thinking and Innovation", prof: "Dr. Urvashi Sugandh", time: "Tue, Thu 2:00 PM", progress: 72, color: "bg-purple-500" },
-              { id: "CSET203", name: "Microprocessors and Computer Networks", prof: "Mr. Kishan Yumnam", time: "Mon, Fri 4:00 PM", progress: 55, color: "bg-green-500" },
-              { id: "CSET209", name: "Operating System", prof: "Dr. Akhil Kumar", time: "Wed, Fri 9:00 AM", progress: 48, color: "bg-orange-500" },
-            ].map((course) => (
+            {courses.map((course) => (
               <div key={course.id} className="panel p-5 group hover:border-primary/50 transition-all cursor-pointer">
                 <div className="flex items-center gap-3 mb-4">
                   <div className={`h-12 w-12 rounded-xl grid place-items-center text-white shadow-lg ${course.color}`}>
@@ -329,16 +408,19 @@ export default function LMS() {
               </div>
             ))}
           </div>
+          )
         )}
 
         {activeTab === "assignments" && (
+          !assignments ? (
+            <div className="panel p-12 text-center">
+              <Lock className="h-10 w-10 mx-auto mb-3 text-muted-foreground opacity-30" />
+              <p className="font-semibold mb-1">College not linked</p>
+              <p className="text-sm text-muted-foreground">Link your college in your profile to see assignments.</p>
+            </div>
+          ) : (
           <div className="space-y-3">
-            {[
-              { title: "Project 1: Algorithm Analysis Report", course: "CSET244", due: "Tomorrow, 11:59 PM", status: "pending", type: "Project" },
-              { title: "Design Thinking Case Study", course: "CSET210", due: "Apr 20, 11:59 PM", status: "pending", type: "Assignment" },
-              { title: "MCN Lab Assignment 3", course: "CSET203", due: "Apr 22, 11:59 PM", status: "submitted", type: "Homework" },
-              { title: "OS Concepts Quiz", course: "CSET209", due: "Apr 18, 9:00 AM", status: "graded", type: "Quiz", grade: "9.5/10" },
-            ].map((task, i) => (
+            {assignments.map((task, i) => (
               <div key={i} className="panel-2 p-4 flex items-center justify-between hover:border-border transition-colors">
                 <div className="flex items-center gap-4">
                   <div className={`h-10 w-10 rounded-full grid place-items-center ${
@@ -355,7 +437,7 @@ export default function LMS() {
                 </div>
                 <div className="text-right">
                   {task.status === "graded" ? (
-                    <div className="text-emerald-400 font-bold text-lg">{(task as any).grade}</div>
+                    <div className="text-emerald-400 font-bold text-lg">{task.grade}</div>
                   ) : (
                     <div className="text-xs font-medium bg-[hsl(var(--surface-3))] px-2.5 py-1 rounded-md">
                       Due: {task.due}
@@ -368,6 +450,7 @@ export default function LMS() {
               </div>
             ))}
           </div>
+          )
         )}
 
         {activeTab === "challenges" && (

@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
-import { Hash, Volume2, Send, Users as UsersIcon, Pin, Smile, AtSign, Plus } from "lucide-react";
+import { Hash, Volume2, Send, Users as UsersIcon, UserPlus, MessageSquare, X, Check } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
+import { useNavigate } from "react-router-dom";
 
 type Server = { id: string; name: string; slug: string; kind: "college" | "global"; description: string | null; college_id: string | null };
 type Channel = { id: string; server_id: string; name: string; type: "text" | "voice"; position: number };
@@ -12,6 +13,7 @@ type ProfileLite = { user_id: string; display_name: string; username: string; av
 
 export default function Servers() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [servers, setServers] = useState<Server[]>([]);
   const [memberships, setMemberships] = useState<Set<string>>(new Set());
   const [activeServer, setActiveServer] = useState<Server | null>(null);
@@ -22,6 +24,8 @@ export default function Servers() {
   const [profiles, setProfiles] = useState<Record<string, ProfileLite>>({});
   const [draft, setDraft] = useState("");
   const [myCollegeId, setMyCollegeId] = useState<string | null>(null);
+  const [selectedMember, setSelectedMember] = useState<ProfileLite | null>(null);
+  const [myConnections, setMyConnections] = useState<Array<{ requester_id: string; recipient_id: string; status: string; id: string }>>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   // Load servers + memberships + my college
@@ -37,6 +41,9 @@ export default function Servers() {
       setMemberships(new Set((m ?? []).map((x: any) => x.server_id)));
       setMyCollegeId((me as any)?.college_id ?? null);
       if (s && s.length && !activeServer) setActiveServer(s[0] as Server);
+      // Load my connections for the member profile popup
+      const { data: conns } = await supabase.from("connections").select("*").or(`requester_id.eq.${user.id},recipient_id.eq.${user.id}`);
+      setMyConnections((conns as any[]) ?? []);
     })();
   }, [user]);
 
@@ -351,7 +358,8 @@ export default function Servers() {
         )}
       </div>
 
-      {/* Members */}
+      {/* Members — only shown to actual members */}
+      {isMember && (
       <div className="w-56 shrink-0 hidden xl:flex flex-col border-l border-border bg-[hsl(var(--surface-1))]">
         <div className="h-12 px-4 flex items-center border-b border-border gap-2">
           <UsersIcon className="h-4 w-4 text-muted-foreground" />
@@ -361,7 +369,11 @@ export default function Servers() {
         <div className="flex-1 overflow-auto p-2">
           <div className="text-[10px] uppercase tracking-wider text-muted-foreground px-2 mb-2">Online — {members.length}</div>
           {members.map((m) => (
-            <div key={m.user_id} className="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-[hsl(var(--surface-2))] group cursor-pointer">
+            <button
+              key={m.user_id}
+              onClick={() => m.user_id !== user?.id && setSelectedMember(m)}
+              className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-[hsl(var(--surface-2))] group cursor-pointer text-left"
+            >
               <div className="relative shrink-0">
                 <div className="h-8 w-8 rounded-full bg-[hsl(var(--surface-3))] grid place-items-center text-xs font-bold overflow-hidden">
                   {m.avatar_url ? (
@@ -376,10 +388,65 @@ export default function Servers() {
                 <div className="text-sm truncate font-medium">{m.display_name}</div>
                 <div className="text-xs text-muted-foreground truncate">@{m.username}</div>
               </div>
-            </div>
+            </button>
           ))}
         </div>
       </div>
+      )}
+
+      {/* Member profile popup */}
+      {selectedMember && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setSelectedMember(null)}>
+          <div className="panel w-full max-w-xs p-5 space-y-4 animate-in fade-in zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-start justify-between">
+              <div className="flex items-center gap-3">
+                <div className="h-12 w-12 rounded-xl bg-[hsl(var(--surface-3))] grid place-items-center text-lg font-bold overflow-hidden">
+                  {selectedMember.avatar_url
+                    ? <img src={selectedMember.avatar_url} className="h-full w-full object-cover" />
+                    : selectedMember.display_name[0]}
+                </div>
+                <div>
+                  <div className="font-bold">{selectedMember.display_name}</div>
+                  <div className="text-xs text-muted-foreground">@{selectedMember.username}</div>
+                </div>
+              </div>
+              <button onClick={() => setSelectedMember(null)} className="text-muted-foreground hover:text-foreground">
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="flex gap-2">
+              {(() => {
+                const conn = myConnections.find(
+                  (c) => (c.requester_id === user?.id && c.recipient_id === selectedMember.user_id) ||
+                         (c.recipient_id === user?.id && c.requester_id === selectedMember.user_id)
+                );
+                if (!conn) return (
+                  <button
+                    onClick={async () => {
+                      if (!user) return;
+                      const { error } = await supabase.from("connections").insert({ requester_id: user.id, recipient_id: selectedMember.user_id, status: "pending" });
+                      if (error) toast.error(error.message);
+                      else { toast.success("Request sent!"); const { data } = await supabase.from("connections").select("*").or(`requester_id.eq.${user.id},recipient_id.eq.${user.id}`); setMyConnections((data as any[]) ?? []); }
+                    }}
+                    className="flex-1 h-9 rounded-lg bg-primary text-primary-foreground text-sm font-bold flex items-center justify-center gap-1.5 hover:opacity-90"
+                  >
+                    <UserPlus className="h-4 w-4" /> Connect
+                  </button>
+                );
+                if (conn.status === "pending") return <div className="flex-1 h-9 rounded-lg border border-border text-sm text-muted-foreground flex items-center justify-center">Request pending</div>;
+                if (conn.status === "accepted") return <div className="flex-1 h-9 rounded-lg border border-emerald-500/30 bg-emerald-500/10 text-emerald-400 text-sm font-medium flex items-center justify-center gap-1.5"><Check className="h-4 w-4" /> Connected</div>;
+                return null;
+              })()}
+              <button
+                onClick={() => { navigate(`/messages?with=${selectedMember.user_id}`); setSelectedMember(null); }}
+                className="flex-1 h-9 rounded-lg border border-border text-sm font-medium flex items-center justify-center gap-1.5 hover:bg-[hsl(var(--surface-2))]"
+              >
+                <MessageSquare className="h-4 w-4" /> Message
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { MapPin, Users, Trophy, Clock, CalendarDays, CheckCircle2, Trash2, Dumbbell } from "lucide-react";
+import { MapPin, Users, Trophy, Clock, CalendarDays, CheckCircle2, Trash2, Dumbbell, GraduationCap } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
@@ -14,67 +14,39 @@ type Booking = {
   created_at: string;
 };
 
-const COURTS = [
-  {
-    id: "Badminton",
-    name: "Badminton Court",
-    location: "Indoor Sports Complex",
-    status: "Available",
-    emoji: "🏸",
-    color: "from-emerald-500/20 to-emerald-500/5",
-    border: "border-emerald-500/30",
-    slots: ["4:00 PM", "5:00 PM", "6:00 PM"],
-  },
-  {
-    id: "Basketball",
-    name: "Main Basketball Court",
-    location: "Outdoor Complex A",
-    status: "Busy",
-    emoji: "🏀",
-    color: "from-red-500/20 to-red-500/5",
-    border: "border-red-500/30",
-    slots: ["7:00 PM", "8:00 PM"],
-  },
-  {
-    id: "Futsal",
-    name: "Turf Futsal Ground",
-    location: "Outdoor Complex B",
-    status: "Available",
-    emoji: "⚽",
-    color: "from-blue-500/20 to-blue-500/5",
-    border: "border-blue-500/30",
-    slots: ["3:30 PM", "4:30 PM", "8:30 PM"],
-  },
-  {
-    id: "Tennis",
-    name: "Lawn Tennis Court",
-    location: "Sports Center",
-    status: "Available",
-    emoji: "🎾",
-    color: "from-yellow-500/20 to-yellow-500/5",
-    border: "border-yellow-500/30",
-    slots: ["6:00 AM", "7:00 AM", "5:00 PM"],
-  },
-  {
-    id: "Table Tennis",
-    name: "Table Tennis Hall",
-    location: "Indoor Sports Complex",
-    status: "Available",
-    emoji: "🏓",
-    color: "from-purple-500/20 to-purple-500/5",
-    border: "border-purple-500/30",
-    slots: ["12:00 PM", "1:00 PM", "3:00 PM", "6:00 PM"],
-  },
-  {
-    id: "Cricket",
-    name: "Cricket Net Practice",
-    location: "Main Ground",
-    status: "Available",
-    emoji: "🏏",
-    color: "from-orange-500/20 to-orange-500/5",
-    border: "border-orange-500/30",
-    slots: ["6:00 AM", "7:00 AM", "4:00 PM", "5:00 PM"],
-  },
+// College-specific courts
+const COLLEGE_COURTS: Record<string, typeof COURTS_DEFAULT> = {};
+
+const COURTS_DEFAULT = [
+  { id: "Badminton", name: "Badminton Court", location: "Indoor Sports Complex", status: "Available", emoji: "🏸", color: "from-emerald-500/20 to-emerald-500/5", border: "border-emerald-500/30", slots: ["4:00 PM", "5:00 PM", "6:00 PM"] },
+  { id: "Basketball", name: "Main Basketball Court", location: "Outdoor Complex A", status: "Busy", emoji: "🏀", color: "from-red-500/20 to-red-500/5", border: "border-red-500/30", slots: ["7:00 PM", "8:00 PM"] },
+  { id: "Futsal", name: "Turf Futsal Ground", location: "Outdoor Complex B", status: "Available", emoji: "⚽", color: "from-blue-500/20 to-blue-500/5", border: "border-blue-500/30", slots: ["3:30 PM", "4:30 PM", "8:30 PM"] },
+  { id: "Tennis", name: "Lawn Tennis Court", location: "Sports Center", status: "Available", emoji: "🎾", color: "from-yellow-500/20 to-yellow-500/5", border: "border-yellow-500/30", slots: ["6:00 AM", "7:00 AM", "5:00 PM"] },
+  { id: "Table Tennis", name: "Table Tennis Hall", location: "Indoor Sports Complex", status: "Available", emoji: "🏓", color: "from-purple-500/20 to-purple-500/5", border: "border-purple-500/30", slots: ["12:00 PM", "1:00 PM", "3:00 PM", "6:00 PM"] },
+  { id: "Cricket", name: "Cricket Net Practice", location: "Main Ground", status: "Available", emoji: "🏏", color: "from-orange-500/20 to-orange-500/5", border: "border-orange-500/30", slots: ["6:00 AM", "7:00 AM", "4:00 PM", "5:00 PM"] },
+];
+
+COLLEGE_COURTS["BU"] = [
+  { id: "Badminton", name: "Badminton Court", location: "BU Indoor Sports Complex", status: "Available", emoji: "🏸", color: "from-emerald-500/20 to-emerald-500/5", border: "border-emerald-500/30", slots: ["4:00 PM", "5:00 PM", "6:00 PM"] },
+  { id: "Basketball", name: "Basketball Court", location: "BU Outdoor Complex", status: "Available", emoji: "🏀", color: "from-orange-500/20 to-orange-500/5", border: "border-orange-500/30", slots: ["6:00 PM", "7:00 PM", "8:00 PM"] },
+  { id: "Futsal", name: "Turf Futsal Ground", location: "BU Sports Ground", status: "Available", emoji: "⚽", color: "from-blue-500/20 to-blue-500/5", border: "border-blue-500/30", slots: ["3:30 PM", "4:30 PM", "8:30 PM"] },
+  { id: "Table Tennis", name: "Table Tennis Hall", location: "BU Recreation Center", status: "Available", emoji: "🏓", color: "from-purple-500/20 to-purple-500/5", border: "border-purple-500/30", slots: ["12:00 PM", "1:00 PM", "6:00 PM"] },
+  { id: "Cricket", name: "Cricket Net Practice", location: "BU Main Ground", status: "Available", emoji: "🏏", color: "from-yellow-500/20 to-yellow-500/5", border: "border-yellow-500/30", slots: ["6:00 AM", "7:00 AM", "4:00 PM"] },
+];
+
+COLLEGE_COURTS["IITD"] = [
+  { id: "Badminton", name: "Badminton Courts (4)", location: "SAC Sports Complex", status: "Available", emoji: "🏸", color: "from-emerald-500/20 to-emerald-500/5", border: "border-emerald-500/30", slots: ["7:00 AM", "8:00 AM", "5:00 PM", "6:00 PM"] },
+  { id: "Basketball", name: "Basketball Court", location: "SAC Outdoor", status: "Available", emoji: "🏀", color: "from-orange-500/20 to-orange-500/5", border: "border-orange-500/30", slots: ["6:00 PM", "7:00 PM"] },
+  { id: "Tennis", name: "Lawn Tennis Courts (3)", location: "SAC Tennis Complex", status: "Available", emoji: "🎾", color: "from-yellow-500/20 to-yellow-500/5", border: "border-yellow-500/30", slots: ["6:00 AM", "7:00 AM", "4:00 PM", "5:00 PM"] },
+  { id: "Squash", name: "Squash Courts", location: "SAC Indoor", status: "Available", emoji: "🏃", color: "from-red-500/20 to-red-500/5", border: "border-red-500/30", slots: ["7:00 AM", "12:00 PM", "5:00 PM"] },
+  { id: "Swimming", name: "Swimming Pool", location: "SAC Aquatics", status: "Available", emoji: "🏊", color: "from-blue-500/20 to-blue-500/5", border: "border-blue-500/30", slots: ["6:00 AM", "7:00 AM", "4:00 PM"] },
+];
+
+COLLEGE_COURTS["DU"] = [
+  { id: "Badminton", name: "Badminton Court", location: "DU Sports Complex", status: "Available", emoji: "🏸", color: "from-emerald-500/20 to-emerald-500/5", border: "border-emerald-500/30", slots: ["4:00 PM", "5:00 PM", "6:00 PM"] },
+  { id: "Football", name: "Football Ground", location: "DU Main Ground", status: "Available", emoji: "⚽", color: "from-green-500/20 to-green-500/5", border: "border-green-500/30", slots: ["6:00 AM", "4:00 PM", "5:00 PM"] },
+  { id: "Cricket", name: "Cricket Ground", location: "DU Sports Field", status: "Available", emoji: "🏏", color: "from-yellow-500/20 to-yellow-500/5", border: "border-yellow-500/30", slots: ["6:00 AM", "7:00 AM", "3:00 PM"] },
+  { id: "Table Tennis", name: "Table Tennis Hall", location: "DU Indoor Hall", status: "Available", emoji: "🏓", color: "from-purple-500/20 to-purple-500/5", border: "border-purple-500/30", slots: ["11:00 AM", "12:00 PM", "5:00 PM"] },
 ];
 
 export default function Sports() {
@@ -82,11 +54,36 @@ export default function Sports() {
   const [activeTab, setActiveTab] = useState<"courts" | "bookings" | "events">("courts");
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(false);
+  const [collegeCode, setCollegeCode] = useState<string | null>(null);
+  const [collegeName, setCollegeName] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user) return;
     void loadBookings();
+    void loadCollege();
   }, [user]);
+
+  async function loadCollege() {
+    if (!user) return;
+    const { data: prof } = await supabase
+      .from("profiles")
+      .select("college_id")
+      .eq("user_id", user.id)
+      .maybeSingle();
+    if ((prof as any)?.college_id) {
+      const { data: col } = await supabase
+        .from("colleges")
+        .select("short_code, name")
+        .eq("id", (prof as any).college_id)
+        .maybeSingle();
+      setCollegeCode((col as any)?.short_code ?? null);
+      setCollegeName((col as any)?.name ?? null);
+    }
+  }
+
+  const COURTS = collegeCode
+    ? (COLLEGE_COURTS[collegeCode] ?? COURTS_DEFAULT)
+    : COURTS_DEFAULT;
 
   async function loadBookings() {
     if (!user) return;
@@ -138,7 +135,15 @@ export default function Sports() {
             </div>
             <div>
               <h1 className="text-3xl font-bold">Athletics & Sports</h1>
-              <p className="text-muted-foreground text-sm">Book courts, join intramurals, and stay active.</p>
+              <div className="flex items-center gap-2 mt-0.5">
+                <p className="text-muted-foreground text-sm">Book courts, join intramurals, and stay active.</p>
+                {collegeName && (
+                  <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                    <GraduationCap className="h-3 w-3" />
+                    {collegeName} facilities
+                  </span>
+                )}
+              </div>
             </div>
           </div>
         </header>

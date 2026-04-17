@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -409,13 +409,13 @@ export default function Auth() {
               </button>
 
               <div className="mt-6 pt-4 border-t border-border">
-                <a href="/admin"
+                <Link to="/admin"
                   className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors">
                   <span className="h-5 w-5 rounded bg-destructive/20 text-destructive grid place-items-center">
                     <ShieldCheck className="h-3 w-3" />
                   </span>
                   Admin panel
-                </a>
+                </Link>
               </div>
             </>
           )}
