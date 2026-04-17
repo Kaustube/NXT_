@@ -441,21 +441,24 @@ export default function Auth() {
               </p>
 
               <form onSubmit={handleRegister} className="mt-6 space-y-3">
+                {/* Trick browser autofill away from real fields */}
+                <input type="text" style={{ display: "none" }} autoComplete="username" />
+                <input type="password" style={{ display: "none" }} autoComplete="new-password" />
                 <Field label="Full name">
                   <input value={displayName} onChange={(e) => setDisplayName(e.target.value)}
-                    className="input" placeholder="Kaustubh Singh" autoComplete="name" required />
+                    className="input" placeholder="Your full name" autoComplete="off" required />
                 </Field>
                 <Field label="Username">
                   <input value={username} onChange={(e) => setUsername(e.target.value)}
-                    className="input" placeholder="kaustubh" autoComplete="username" required />
+                    className="input" placeholder="Choose a username" autoComplete="off" required />
                 </Field>
                 <Field label="Roll number (optional)">
                   <input value={rollNumber} onChange={(e) => setRollNumber(e.target.value)}
-                    className="input" placeholder="S24CSEU1380" />
+                    className="input" placeholder="e.g. S24CSEU1380" autoComplete="off" />
                 </Field>
                 <Field label="Email">
                   <input type="email" value={email} onChange={(e) => setEmail(e.target.value)}
-                    className="input" placeholder="you@bennett.edu.in" autoComplete="email" required />
+                    className="input" placeholder="your@email.com" autoComplete="off" required />
                 </Field>
                 <Field label="Password">
                   <PasswordInput
