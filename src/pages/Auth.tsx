@@ -89,11 +89,13 @@ export default function Auth() {
     setBusy(true);
     const { error } = await supabase.auth.signInWithOtp({
       email: forgotEmail.trim(),
-      options: { shouldCreateUser: false },
+      options: {
+        shouldCreateUser: false,
+        emailRedirectTo: undefined, // force OTP code, not magic link
+      },
     });
     setBusy(false);
     if (error) {
-      // Supabase returns a generic error if email not found — show friendly message
       toast.error("No account found with that email, or too many requests. Try again.");
       return;
     }
@@ -120,13 +122,21 @@ export default function Auth() {
     const code = otp.join("");
     if (code.length < 6) { toast.error("Enter the full 6-digit code"); return; }
     setBusy(true);
-    const { error } = await supabase.auth.verifyOtp({
+    // Try OTP type first, fall back to magiclink
+    let result = await supabase.auth.verifyOtp({
       email: forgotEmail.trim(),
       token: code,
       type: "email",
     });
+    if (result.error) {
+      result = await supabase.auth.verifyOtp({
+        email: forgotEmail.trim(),
+        token: code,
+        type: "magiclink",
+      });
+    }
     setBusy(false);
-    if (error) { toast.error("Invalid or expired code. Try again."); return; }
+    if (result.error) { toast.error("Invalid or expired code. Try again."); return; }
     setForgotStep("newpass");
   }
 

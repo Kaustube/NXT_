@@ -1,14 +1,13 @@
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 
-// Hardcoded fallback so the app works even if env vars aren't set on Vercel
 const SUPABASE_URL =
   import.meta.env.VITE_SUPABASE_URL ||
-  "https://gskxsuvbnezgotvwtgcl.supabase.co";
+  "https://pdqxmkxjgdoghxlawzds.supabase.co";
 
 const SUPABASE_PUBLISHABLE_KEY =
   import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ||
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imdza3hzdXZibmV6Z290dnd0Z2NsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYzNTU4NjMsImV4cCI6MjA5MTkzMTg2M30.eTqOx_kCVSgyBY5VwDINyihKmUic8wSubkBFO5HEZpQ";
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBkcXhta3hqZ2RvZ2h4bGF3emRzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY0MTI3ODcsImV4cCI6MjA5MTk4ODc4N30.pZV0cOvbcO1sJxvBG19g05cUWrb5d7vL_20qugl2lk0";
 
 export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
   auth: {
