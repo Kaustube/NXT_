@@ -1,34 +1,51 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Mail, ArrowLeft, KeyRound, Eye, EyeOff, ShieldCheck } from "lucide-react";
+import { Mail, ArrowLeft, KeyRound, Eye, EyeOff, ShieldCheck, RefreshCw } from "lucide-react";
 
-type Mode = "login" | "register" | "forgot" | "reset";
+// forgot flow steps
+type ForgotStep = "email" | "code" | "newpass" | "done";
+type Mode = "login" | "register" | "forgot";
 
 export default function Auth() {
   const [mode, setMode] = useState<Mode>("login");
+
+  // login / register fields
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [newPassword, setNewPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [username, setUsername] = useState("");
   const [rollNumber, setRollNumber] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [forgotSent, setForgotSent] = useState(false);
+
+  // forgot-password flow
+  const [forgotEmail, setForgotEmail] = useState("");
+  const [forgotStep, setForgotStep] = useState<ForgotStep>("email");
+  const [otp, setOtp] = useState(["", "", "", "", "", ""]);
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showNew, setShowNew] = useState(false);
+  const [resendCooldown, setResendCooldown] = useState(0);
+  const otpRefs = useRef<(HTMLInputElement | null)[]>([]);
+  const cooldownRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
   const { signIn, signUp } = useAuth();
   const navigate = useNavigate();
 
-  // Detect password reset token in URL hash (#access_token=...&type=recovery)
+  // Cooldown timer for resend
   useEffect(() => {
-    const hash = window.location.hash;
-    if (hash.includes("type=recovery")) {
-      setMode("reset");
-    }
-  }, []);
+    if (resendCooldown <= 0) return;
+    cooldownRef.current = setInterval(() => {
+      setResendCooldown((v) => {
+        if (v <= 1) { clearInterval(cooldownRef.current!); return 0; }
+        return v - 1;
+      });
+    }, 1000);
+    return () => clearInterval(cooldownRef.current!);
+  }, [resendCooldown]);
 
   // ── Login ──────────────────────────────────────────────────────────────────
   async function handleLogin(e: React.FormEvent) {
@@ -65,21 +82,56 @@ export default function Auth() {
     else navigate("/");
   }
 
-  // ── Forgot password ────────────────────────────────────────────────────────
-  async function handleForgot(e: React.FormEvent) {
+  // ── Forgot: Step 1 — send OTP ──────────────────────────────────────────────
+  async function sendOtp(e: React.FormEvent) {
     e.preventDefault();
-    if (!email.trim()) { toast.error("Enter your registered email"); return; }
+    if (!forgotEmail.trim()) { toast.error("Enter your registered email"); return; }
     setBusy(true);
-    const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
-      redirectTo: `${window.location.origin}/auth`,
+    const { error } = await supabase.auth.signInWithOtp({
+      email: forgotEmail.trim(),
+      options: { shouldCreateUser: false },
     });
     setBusy(false);
-    if (error) { toast.error(error.message); return; }
-    setForgotSent(true);
+    if (error) {
+      // Supabase returns a generic error if email not found — show friendly message
+      toast.error("No account found with that email, or too many requests. Try again.");
+      return;
+    }
+    toast.success("6-digit code sent to your email!");
+    setForgotStep("code");
+    setResendCooldown(60);
   }
 
-  // ── Reset password (after clicking email link) ─────────────────────────────
-  async function handleReset(e: React.FormEvent) {
+  async function resendOtp() {
+    if (resendCooldown > 0) return;
+    setBusy(true);
+    await supabase.auth.signInWithOtp({
+      email: forgotEmail.trim(),
+      options: { shouldCreateUser: false },
+    });
+    setBusy(false);
+    toast.success("New code sent!");
+    setResendCooldown(60);
+  }
+
+  // ── Forgot: Step 2 — verify OTP ───────────────────────────────────────────
+  async function verifyOtp(e: React.FormEvent) {
+    e.preventDefault();
+    const code = otp.join("");
+    if (code.length < 6) { toast.error("Enter the full 6-digit code"); return; }
+    setBusy(true);
+    const { error } = await supabase.auth.verifyOtp({
+      email: forgotEmail.trim(),
+      token: code,
+      type: "email",
+    });
+    setBusy(false);
+    if (error) { toast.error("Invalid or expired code. Try again."); return; }
+    setForgotStep("newpass");
+  }
+
+  // ── Forgot: Step 3 — set new password ─────────────────────────────────────
+  async function setNewPass(e: React.FormEvent) {
     e.preventDefault();
     if (newPassword.length < 6) { toast.error("Password must be at least 6 characters"); return; }
     if (newPassword !== confirmPassword) { toast.error("Passwords don't match"); return; }
@@ -87,10 +139,38 @@ export default function Auth() {
     const { error } = await supabase.auth.updateUser({ password: newPassword });
     setBusy(false);
     if (error) { toast.error(error.message); return; }
-    toast.success("Password updated! Signing you in…");
-    // Clear the hash and redirect
-    window.history.replaceState(null, "", window.location.pathname);
-    navigate("/");
+    setForgotStep("done");
+  }
+
+  // OTP input helpers
+  function handleOtpChange(i: number, val: string) {
+    const digit = val.replace(/\D/g, "").slice(-1);
+    const next = [...otp];
+    next[i] = digit;
+    setOtp(next);
+    if (digit && i < 5) otpRefs.current[i + 1]?.focus();
+  }
+
+  function handleOtpKeyDown(i: number, e: React.KeyboardEvent) {
+    if (e.key === "Backspace" && !otp[i] && i > 0) {
+      otpRefs.current[i - 1]?.focus();
+    }
+  }
+
+  function handleOtpPaste(e: React.ClipboardEvent) {
+    const text = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, 6);
+    if (text.length === 6) {
+      setOtp(text.split(""));
+      otpRefs.current[5]?.focus();
+    }
+  }
+
+  function resetForgot() {
+    setForgotStep("email");
+    setForgotEmail("");
+    setOtp(["", "", "", "", "", ""]);
+    setNewPassword("");
+    setConfirmPassword("");
   }
 
   return (
@@ -119,7 +199,7 @@ export default function Auth() {
       </div>
 
       {/* Right form panel */}
-      <div className="flex flex-col justify-center px-6 py-10 lg:px-16">
+      <div className="flex flex-col justify-center px-6 py-10 lg:px-16 overflow-auto">
         <div className="w-full max-w-sm mx-auto">
           {/* Mobile logo */}
           <div className="lg:hidden flex items-center gap-2 mb-8">
@@ -127,102 +207,169 @@ export default function Auth() {
             <span className="text-sm tracking-wide">NXT</span>
           </div>
 
-          {/* ── RESET PASSWORD (from email link) ── */}
-          {mode === "reset" && (
-            <>
-              <div className="flex items-center gap-2 mb-6">
-                <div className="h-10 w-10 rounded-xl bg-primary/20 text-primary grid place-items-center">
-                  <KeyRound className="h-5 w-5" />
-                </div>
-                <div>
-                  <h2 className="text-xl font-semibold">Set new password</h2>
-                  <p className="text-xs text-muted-foreground">Choose a strong password for your account.</p>
-                </div>
-              </div>
-              <form onSubmit={handleReset} className="space-y-3">
-                <Field label="New password">
-                  <PasswordInput
-                    value={newPassword}
-                    onChange={setNewPassword}
-                    show={showPassword}
-                    onToggle={() => setShowPassword((v) => !v)}
-                    placeholder="Min. 6 characters"
-                    autoComplete="new-password"
-                  />
-                </Field>
-                <Field label="Confirm password">
-                  <input
-                    type="password"
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    className="input"
-                    placeholder="Repeat password"
-                    autoComplete="new-password"
-                    required
-                  />
-                </Field>
-                <button type="submit" disabled={busy}
-                  className="w-full mt-2 h-10 rounded-md bg-primary text-primary-foreground font-medium text-sm hover:opacity-90 transition disabled:opacity-60">
-                  {busy ? "Updating…" : "Update password"}
-                </button>
-              </form>
-            </>
-          )}
-
-          {/* ── FORGOT PASSWORD ── */}
+          {/* ════════════════════════════════════════
+              FORGOT PASSWORD FLOW
+          ════════════════════════════════════════ */}
           {mode === "forgot" && (
             <>
-              <button onClick={() => { setMode("login"); setForgotSent(false); }}
-                className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground mb-6 transition-colors">
-                <ArrowLeft className="h-3.5 w-3.5" /> Back to sign in
-              </button>
+              {forgotStep !== "done" && (
+                <button
+                  onClick={() => { setMode("login"); resetForgot(); }}
+                  className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground mb-6 transition-colors"
+                >
+                  <ArrowLeft className="h-3.5 w-3.5" /> Back to sign in
+                </button>
+              )}
 
-              {forgotSent ? (
-                <div className="text-center py-6">
-                  <div className="h-14 w-14 rounded-2xl bg-primary/20 text-primary grid place-items-center mx-auto mb-4">
-                    <Mail className="h-7 w-7" />
-                  </div>
-                  <h2 className="text-xl font-semibold mb-2">Check your email</h2>
-                  <p className="text-sm text-muted-foreground leading-relaxed">
-                    We sent a password reset link to<br />
-                    <span className="font-medium text-foreground">{email}</span>
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-4">
-                    Didn't get it?{" "}
-                    <button onClick={() => setForgotSent(false)} className="text-primary hover:underline">
-                      Try again
-                    </button>
-                  </p>
-                </div>
-              ) : (
+              {/* Step 1: Enter email */}
+              {forgotStep === "email" && (
                 <>
-                  <h2 className="text-2xl font-semibold tracking-tight">Forgot password?</h2>
-                  <p className="text-sm text-muted-foreground mt-1 mb-6">
-                    Enter your registered email and we'll send a reset link.
-                  </p>
-                  <form onSubmit={handleForgot} className="space-y-3">
+                  <div className="flex items-center gap-3 mb-6">
+                    <div className="h-10 w-10 rounded-xl bg-primary/20 text-primary grid place-items-center shrink-0">
+                      <Mail className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <h2 className="text-xl font-semibold">Reset password</h2>
+                      <p className="text-xs text-muted-foreground">We'll send a 6-digit code to your email.</p>
+                    </div>
+                  </div>
+                  <form onSubmit={sendOtp} className="space-y-3">
                     <Field label="Registered email">
                       <input
                         type="email"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
+                        value={forgotEmail}
+                        onChange={(e) => setForgotEmail(e.target.value)}
                         className="input"
-                        placeholder="you@bennett.edu.in"
+                        placeholder="kaustubh1780@gmail.com"
                         autoComplete="email"
                         required
                       />
                     </Field>
                     <button type="submit" disabled={busy}
-                      className="w-full mt-2 h-10 rounded-md bg-primary text-primary-foreground font-medium text-sm hover:opacity-90 transition disabled:opacity-60">
-                      {busy ? "Sending…" : "Send reset link"}
+                      className="w-full h-10 rounded-md bg-primary text-primary-foreground font-medium text-sm hover:opacity-90 transition disabled:opacity-60">
+                      {busy ? "Sending…" : "Send code"}
                     </button>
                   </form>
                 </>
               )}
+
+              {/* Step 2: Enter OTP */}
+              {forgotStep === "code" && (
+                <>
+                  <div className="text-center mb-6">
+                    <div className="h-14 w-14 rounded-2xl bg-primary/20 text-primary grid place-items-center mx-auto mb-3">
+                      <Mail className="h-7 w-7" />
+                    </div>
+                    <h2 className="text-xl font-semibold">Enter the code</h2>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Sent to <span className="font-medium text-foreground">{forgotEmail}</span>
+                    </p>
+                  </div>
+
+                  <form onSubmit={verifyOtp} className="space-y-5">
+                    {/* OTP boxes */}
+                    <div className="flex gap-2 justify-center" onPaste={handleOtpPaste}>
+                      {otp.map((digit, i) => (
+                        <input
+                          key={i}
+                          ref={(el) => { otpRefs.current[i] = el; }}
+                          type="text"
+                          inputMode="numeric"
+                          maxLength={1}
+                          value={digit}
+                          onChange={(e) => handleOtpChange(i, e.target.value)}
+                          onKeyDown={(e) => handleOtpKeyDown(i, e)}
+                          className="w-11 h-13 text-center text-xl font-bold rounded-lg bg-[hsl(var(--input))] border-2 border-border focus:border-primary focus:outline-none transition-colors"
+                          style={{ height: "3.25rem" }}
+                        />
+                      ))}
+                    </div>
+
+                    <button type="submit" disabled={busy || otp.join("").length < 6}
+                      className="w-full h-10 rounded-md bg-primary text-primary-foreground font-medium text-sm hover:opacity-90 transition disabled:opacity-60">
+                      {busy ? "Verifying…" : "Verify code"}
+                    </button>
+                  </form>
+
+                  <div className="mt-4 text-center">
+                    {resendCooldown > 0 ? (
+                      <p className="text-xs text-muted-foreground">
+                        Resend in <span className="font-medium text-foreground">{resendCooldown}s</span>
+                      </p>
+                    ) : (
+                      <button onClick={resendOtp} disabled={busy}
+                        className="text-xs text-primary hover:underline flex items-center gap-1 mx-auto">
+                        <RefreshCw className="h-3 w-3" /> Resend code
+                      </button>
+                    )}
+                  </div>
+                </>
+              )}
+
+              {/* Step 3: Set new password */}
+              {forgotStep === "newpass" && (
+                <>
+                  <div className="flex items-center gap-3 mb-6">
+                    <div className="h-10 w-10 rounded-xl bg-primary/20 text-primary grid place-items-center shrink-0">
+                      <KeyRound className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <h2 className="text-xl font-semibold">New password</h2>
+                      <p className="text-xs text-muted-foreground">Choose a strong password.</p>
+                    </div>
+                  </div>
+                  <form onSubmit={setNewPass} className="space-y-3">
+                    <Field label="New password">
+                      <PasswordInput
+                        value={newPassword}
+                        onChange={setNewPassword}
+                        show={showNew}
+                        onToggle={() => setShowNew((v) => !v)}
+                        placeholder="Min. 6 characters"
+                        autoComplete="new-password"
+                      />
+                    </Field>
+                    <Field label="Confirm password">
+                      <input
+                        type="password"
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                        className="input"
+                        placeholder="Repeat password"
+                        autoComplete="new-password"
+                        required
+                      />
+                    </Field>
+                    <button type="submit" disabled={busy}
+                      className="w-full h-10 rounded-md bg-primary text-primary-foreground font-medium text-sm hover:opacity-90 transition disabled:opacity-60">
+                      {busy ? "Saving…" : "Set new password"}
+                    </button>
+                  </form>
+                </>
+              )}
+
+              {/* Step 4: Done */}
+              {forgotStep === "done" && (
+                <div className="text-center py-6">
+                  <div className="text-5xl mb-4">🎉</div>
+                  <h2 className="text-xl font-semibold mb-2">Password updated!</h2>
+                  <p className="text-sm text-muted-foreground mb-6">
+                    You can now sign in with your new password.
+                  </p>
+                  <button
+                    onClick={() => { setMode("login"); resetForgot(); }}
+                    className="h-10 px-6 rounded-md bg-primary text-primary-foreground font-medium text-sm hover:opacity-90 transition"
+                  >
+                    Sign in
+                  </button>
+                </div>
+              )}
             </>
           )}
 
-          {/* ── LOGIN ── */}
+          {/* ════════════════════════════════════════
+              LOGIN
+          ════════════════════════════════════════ */}
           {mode === "login" && (
             <>
               <h2 className="text-2xl font-semibold tracking-tight">Sign in to NXT</h2>
@@ -244,7 +391,8 @@ export default function Auth() {
                   />
                 </Field>
                 <div className="flex justify-end">
-                  <button type="button" onClick={() => setMode("forgot")}
+                  <button type="button"
+                    onClick={() => { setMode("forgot"); setForgotEmail(email); }}
                     className="text-xs text-muted-foreground hover:text-primary transition-colors">
                     Forgot password?
                   </button>
@@ -259,10 +407,22 @@ export default function Auth() {
                 className="mt-4 text-sm text-muted-foreground hover:text-foreground">
                 New here? Create an account
               </button>
+
+              <div className="mt-6 pt-4 border-t border-border">
+                <a href="/admin"
+                  className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors">
+                  <span className="h-5 w-5 rounded bg-destructive/20 text-destructive grid place-items-center">
+                    <ShieldCheck className="h-3 w-3" />
+                  </span>
+                  Admin panel
+                </a>
+              </div>
             </>
           )}
 
-          {/* ── REGISTER ── */}
+          {/* ════════════════════════════════════════
+              REGISTER
+          ════════════════════════════════════════ */}
           {mode === "register" && (
             <>
               <h2 className="text-2xl font-semibold tracking-tight">Create your account</h2>
@@ -307,20 +467,17 @@ export default function Auth() {
                 className="mt-4 text-sm text-muted-foreground hover:text-foreground">
                 Already have an account? Sign in
               </button>
-            </>
-          )}
 
-          {/* Admin link — shown on login/register only */}
-          {(mode === "login" || mode === "register") && (
-            <div className="mt-6 pt-4 border-t border-border">
-              <a href="/admin"
-                className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors">
-                <span className="h-5 w-5 rounded bg-destructive/20 text-destructive grid place-items-center">
-                  <ShieldCheck className="h-3 w-3" />
-                </span>
-                Admin panel
-              </a>
-            </div>
+              <div className="mt-6 pt-4 border-t border-border">
+                <a href="/admin"
+                  className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors">
+                  <span className="h-5 w-5 rounded bg-destructive/20 text-destructive grid place-items-center">
+                    <ShieldCheck className="h-3 w-3" />
+                  </span>
+                  Admin panel
+                </a>
+              </div>
+            </>
           )}
         </div>
       </div>
@@ -374,11 +531,8 @@ function PasswordInput({
         required
         minLength={6}
       />
-      <button
-        type="button"
-        onClick={onToggle}
-        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-      >
+      <button type="button" onClick={onToggle}
+        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors">
         {show ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
       </button>
     </div>
