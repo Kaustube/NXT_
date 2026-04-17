@@ -5,8 +5,10 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/context/AuthContext";
 import { ThemeProvider } from "@/context/ThemeContext";
-import { RequireAuth, RedirectIfAuthed } from "@/components/RequireAuth";
+import { NotificationProvider } from "@/context/NotificationContext";
+import { RequireAuth, RequireAdmin, RedirectIfAuthed } from "@/components/RequireAuth";
 import AppLayout from "@/components/AppLayout";
+import AdminLayout from "@/components/AdminLayout";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import Servers from "./pages/Servers";
@@ -27,6 +29,14 @@ import Opportunities from "./pages/Opportunities";
 import PlacementDashboard from "./pages/PlacementDashboard";
 import Languages from "./pages/Languages";
 import NotFound from "./pages/NotFound";
+import AdminOverview from "./pages/admin/Overview";
+import AdminUsers from "./pages/admin/AdminUsers";
+import AdminServers from "./pages/admin/AdminServers";
+import AdminChallenges from "./pages/admin/AdminChallenges";
+import AdminSports from "./pages/admin/AdminSports";
+import AdminLMS from "./pages/admin/AdminLMS";
+import AdminEvents from "./pages/admin/AdminEvents";
+import AdminNotifications from "./pages/admin/AdminNotifications";
 
 const queryClient = new QueryClient();
 
@@ -34,12 +44,15 @@ const App = () => (
   <QueryClientProvider client={queryClient}>
     <ThemeProvider>
       <AuthProvider>
+        <NotificationProvider>
         <TooltipProvider>
           <Toaster />
           <Sonner />
           <BrowserRouter>
             <Routes>
               <Route path="/auth" element={<RedirectIfAuthed><Auth /></RedirectIfAuthed>} />
+
+              {/* Main app */}
               <Route element={<RequireAuth />}>
                 <Route element={<AppLayout />}>
                   <Route path="/" element={<Dashboard />} />
@@ -62,10 +75,26 @@ const App = () => (
                   <Route path="/languages" element={<Languages />} />
                 </Route>
               </Route>
+
+              {/* Admin panel — requires admin role */}
+              <Route element={<RequireAdmin />}>
+                <Route element={<AdminLayout />}>
+                  <Route path="/admin" element={<AdminOverview />} />
+                  <Route path="/admin/users" element={<AdminUsers />} />
+                  <Route path="/admin/servers" element={<AdminServers />} />
+                  <Route path="/admin/challenges" element={<AdminChallenges />} />
+                  <Route path="/admin/sports" element={<AdminSports />} />
+                  <Route path="/admin/lms" element={<AdminLMS />} />
+                  <Route path="/admin/events" element={<AdminEvents />} />
+                  <Route path="/admin/notifications" element={<AdminNotifications />} />
+                </Route>
+              </Route>
+
               <Route path="*" element={<NotFound />} />
             </Routes>
           </BrowserRouter>
         </TooltipProvider>
+        </NotificationProvider>
       </AuthProvider>
     </ThemeProvider>
   </QueryClientProvider>

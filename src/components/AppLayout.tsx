@@ -15,13 +15,14 @@ import {
   LogOut,
   Sun,
   Moon,
-  Bell,
   BookOpen,
   Trophy,
   Briefcase,
   Target,
   Languages,
 } from "lucide-react";
+import NotificationPanel from "@/components/NotificationPanel";
+import SettingsPanel from "@/components/SettingsPanel";
 
 type Profile = {
   display_name: string;
@@ -144,12 +145,8 @@ export default function AppLayout() {
             >
               {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
             </button>
-            <button
-              className="h-9 w-9 grid place-items-center rounded-md text-muted-foreground hover:text-foreground hover:bg-[hsl(var(--surface-2))]"
-              title="Notifications"
-            >
-              <Bell className="h-4 w-4" />
-            </button>
+            <NotificationPanel />
+            <SettingsPanel />
           </div>
         </header>
 

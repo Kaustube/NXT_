@@ -303,6 +303,279 @@ export type Database = {
           },
         ]
       }
+      notifications: {
+        Row: {
+          actor_id: string | null
+          body: string | null
+          created_at: string
+          id: string
+          read: boolean
+          ref_id: string | null
+          title: string
+          type: Database["public"]["Enums"]["notification_type"]
+          user_id: string
+        }
+        Insert: {
+          actor_id?: string | null
+          body?: string | null
+          created_at?: string
+          id?: string
+          read?: boolean
+          ref_id?: string | null
+          title: string
+          type: Database["public"]["Enums"]["notification_type"]
+          user_id: string
+        }
+        Update: {
+          actor_id?: string | null
+          body?: string | null
+          created_at?: string
+          id?: string
+          read?: boolean
+          ref_id?: string | null
+          title?: string
+          type?: Database["public"]["Enums"]["notification_type"]
+          user_id?: string
+        }
+        Relationships: []
+      }
+      coding_challenges: {
+        Row: {
+          active_date: string
+          constraints: string | null
+          created_at: string
+          description: string
+          difficulty: Database["public"]["Enums"]["challenge_difficulty"]
+          examples: Json
+          id: string
+          slug: string
+          tags: string[]
+          title: string
+        }
+        Insert: {
+          active_date?: string
+          constraints?: string | null
+          created_at?: string
+          description: string
+          difficulty?: Database["public"]["Enums"]["challenge_difficulty"]
+          examples?: Json
+          id?: string
+          slug: string
+          tags?: string[]
+          title: string
+        }
+        Update: {
+          active_date?: string
+          constraints?: string | null
+          created_at?: string
+          description?: string
+          difficulty?: Database["public"]["Enums"]["challenge_difficulty"]
+          examples?: Json
+          id?: string
+          slug?: string
+          tags?: string[]
+          title?: string
+        }
+        Relationships: []
+      }
+      course_materials: {
+        Row: {
+          course_id: string
+          created_at: string
+          description: string | null
+          file_name: string
+          file_size: number
+          file_type: string
+          file_url: string
+          id: string
+          material_type: string
+          title: string
+          uploaded_by: string
+        }
+        Insert: {
+          course_id: string
+          created_at?: string
+          description?: string | null
+          file_name: string
+          file_size?: number
+          file_type: string
+          file_url: string
+          id?: string
+          material_type?: string
+          title: string
+          uploaded_by: string
+        }
+        Update: {
+          course_id?: string
+          created_at?: string
+          description?: string | null
+          file_name?: string
+          file_size?: number
+          file_type?: string
+          file_url?: string
+          id?: string
+          material_type?: string
+          title?: string
+          uploaded_by?: string
+        }
+        Relationships: []
+      }
+      challenge_attachments: {
+        Row: {
+          challenge_id: string
+          created_at: string
+          file_name: string
+          file_size: number
+          file_type: string
+          file_url: string
+          id: string
+          title: string
+          uploaded_by: string
+        }
+        Insert: {
+          challenge_id: string
+          created_at?: string
+          file_name: string
+          file_size?: number
+          file_type: string
+          file_url: string
+          id?: string
+          title: string
+          uploaded_by: string
+        }
+        Update: {
+          challenge_id?: string
+          created_at?: string
+          file_name?: string
+          file_size?: number
+          file_type?: string
+          file_url?: string
+          id?: string
+          title?: string
+          uploaded_by?: string
+        }
+        Relationships: []
+      }
+      challenge_submissions: {
+        Row: {
+          challenge_id: string
+          code: string
+          id: string
+          language: string
+          runtime_ms: number | null
+          status: string
+          submitted_at: string
+          user_id: string
+        }
+        Insert: {
+          challenge_id: string
+          code: string
+          id?: string
+          language?: string
+          runtime_ms?: number | null
+          status?: string
+          submitted_at?: string
+          user_id: string
+        }
+        Update: {
+          challenge_id?: string
+          code?: string
+          id?: string
+          language?: string
+          runtime_ms?: number | null
+          status?: string
+          submitted_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      sports_bookings: {
+        Row: {
+          booking_date: string
+          court_name: string
+          created_at: string
+          id: string
+          slot_time: string
+          status: string
+          user_id: string
+        }
+        Insert: {
+          booking_date?: string
+          court_name: string
+          created_at?: string
+          id?: string
+          slot_time: string
+          status?: string
+          user_id: string
+        }
+        Update: {
+          booking_date?: string
+          court_name?: string
+          created_at?: string
+          id?: string
+          slot_time?: string
+          status?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_streaks: {
+        Row: {
+          current_streak: number
+          last_active_date: string | null
+          longest_streak: number
+          total_days_active: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          current_streak?: number
+          last_active_date?: string | null
+          longest_streak?: number
+          total_days_active?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          current_streak?: number
+          last_active_date?: string | null
+          longest_streak?: number
+          total_days_active?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      notification_preferences: {
+        Row: {
+          channel_notifications: boolean
+          dm_notifications: boolean
+          friend_notifications: boolean
+          sound_enabled: boolean
+          sound_volume: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          channel_notifications?: boolean
+          dm_notifications?: boolean
+          friend_notifications?: boolean
+          sound_enabled?: boolean
+          sound_volume?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          channel_notifications?: boolean
+          dm_notifications?: boolean
+          friend_notifications?: boolean
+          sound_enabled?: boolean
+          sound_volume?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -496,10 +769,12 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "member"
+      challenge_difficulty: "easy" | "medium" | "hard"
       channel_type: "text" | "voice"
       connection_status: "pending" | "accepted" | "declined"
       event_kind: "hackathon" | "codeathon" | "challenge"
       listing_category: "buy" | "sell" | "rent"
+      notification_type: "dm" | "channel_message" | "friend_request" | "friend_accepted"
       server_kind: "college" | "global"
     }
     CompositeTypes: {
@@ -629,10 +904,12 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "member"],
+      challenge_difficulty: ["easy", "medium", "hard"],
       channel_type: ["text", "voice"],
       connection_status: ["pending", "accepted", "declined"],
       event_kind: ["hackathon", "codeathon", "challenge"],
       listing_category: ["buy", "sell", "rent"],
+      notification_type: ["dm", "channel_message", "friend_request", "friend_accepted"],
       server_kind: ["college", "global"],
     },
   },

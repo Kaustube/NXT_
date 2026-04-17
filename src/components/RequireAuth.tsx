@@ -15,6 +15,21 @@ export function RequireAuth() {
   return <Outlet />;
 }
 
+export function RequireAdmin() {
+  const { user, isAdmin, loading } = useAuth();
+  const location = useLocation();
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center text-sm text-muted-foreground">
+        Loading…
+      </div>
+    );
+  }
+  if (!user) return <Navigate to="/auth" replace state={{ from: location }} />;
+  if (!isAdmin) return <Navigate to="/" replace />;
+  return <Outlet />;
+}
+
 export function RedirectIfAuthed({ children }: { children: JSX.Element }) {
   const { user, loading } = useAuth();
   if (loading) return null;

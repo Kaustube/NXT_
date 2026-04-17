@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
-import { Hash, Volume2, Send, Users as UsersIcon } from "lucide-react";
+import { Hash, Volume2, Send, Users as UsersIcon, Pin, Smile, AtSign, Plus } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 
-type Server = { id: string; name: string; slug: string; kind: "college" | "global"; description: string | null };
+type Server = { id: string; name: string; slug: string; kind: "college" | "global"; description: string | null; college_id: string | null };
 type Channel = { id: string; server_id: string; name: string; type: "text" | "voice"; position: number };
 type Message = { id: string; channel_id: string; author_id: string; content: string; created_at: string };
 type ProfileLite = { user_id: string; display_name: string; username: string; avatar_url: string | null };
@@ -21,18 +21,21 @@ export default function Servers() {
   const [members, setMembers] = useState<ProfileLite[]>([]);
   const [profiles, setProfiles] = useState<Record<string, ProfileLite>>({});
   const [draft, setDraft] = useState("");
+  const [myCollegeId, setMyCollegeId] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // Load servers + memberships
+  // Load servers + memberships + my college
   useEffect(() => {
     if (!user) return;
     (async () => {
-      const [{ data: s }, { data: m }] = await Promise.all([
+      const [{ data: s }, { data: m }, { data: me }] = await Promise.all([
         supabase.from("servers").select("*").order("kind").order("name"),
         supabase.from("server_members").select("server_id").eq("user_id", user.id),
+        supabase.from("profiles").select("college_id").eq("user_id", user.id).maybeSingle(),
       ]);
       setServers((s as Server[]) ?? []);
       setMemberships(new Set((m ?? []).map((x: any) => x.server_id)));
+      setMyCollegeId((me as any)?.college_id ?? null);
       if (s && s.length && !activeServer) setActiveServer(s[0] as Server);
     })();
   }, [user]);
@@ -120,6 +123,19 @@ export default function Servers() {
 
   async function joinServer() {
     if (!user || !activeServer) return;
+
+    // Frontend guard: college servers require matching college
+    if (activeServer.kind === "college") {
+      if (!myCollegeId) {
+        toast.error("Your account isn't linked to a college. Update your profile first.");
+        return;
+      }
+      if (myCollegeId !== activeServer.college_id) {
+        toast.error("This server is only open to students from that college.");
+        return;
+      }
+    }
+
     const { error } = await supabase.from("server_members").insert({ server_id: activeServer.id, user_id: user.id });
     if (error) toast.error(error.message);
     else {
@@ -145,12 +161,20 @@ export default function Servers() {
   const globalServers = useMemo(() => servers.filter((s) => s.kind === "global"), [servers]);
   const isMember = activeServer ? memberships.has(activeServer.id) : false;
 
+  // Can the user join this server?
+  const canJoin = !activeServer ? false
+    : activeServer.kind === "global"
+    ? true
+    : myCollegeId !== null && myCollegeId === activeServer.college_id;
+
   return (
     <div className="flex h-[calc(100vh-3.5rem)]">
       {/* Server rail */}
       <div className="w-16 shrink-0 border-r border-border bg-[hsl(var(--surface-1))] py-3 flex flex-col items-center gap-2 overflow-auto">
         {collegeServers.map((s) => (
-          <ServerIcon key={s.id} server={s} active={activeServer?.id === s.id} onClick={() => setActiveServer(s)} />
+          <ServerIcon key={s.id} server={s} active={activeServer?.id === s.id}
+            locked={s.kind === "college" && !memberships.has(s.id) && !(myCollegeId && myCollegeId === s.college_id)}
+            onClick={() => setActiveServer(s)} />
         ))}
         <div className="h-px w-8 bg-border my-1" />
         {globalServers.map((s) => (
@@ -160,22 +184,47 @@ export default function Servers() {
 
       {/* Channel sidebar */}
       <div className="w-60 shrink-0 hidden md:flex flex-col border-r border-border bg-[hsl(var(--sidebar-background))]">
-        <div className="px-4 h-12 flex items-center border-b border-border">
+        <div className="px-4 h-12 flex items-center justify-between border-b border-border">
           <div className="text-sm font-semibold truncate">{activeServer?.name ?? "—"}</div>
+          {isMember && (
+            <span className="text-[10px] px-1.5 py-0.5 rounded bg-primary/20 text-primary font-bold">Member</span>
+          )}
         </div>
+        {activeServer?.description && (
+          <div className="px-4 py-2 text-xs text-muted-foreground border-b border-border/50 bg-[hsl(var(--surface-1))]">
+            {activeServer.description}
+          </div>
+        )}
         <div className="flex-1 overflow-auto p-2">
-          <div className="text-[10px] uppercase tracking-wider text-muted-foreground px-2 mt-1 mb-1">Channels</div>
-          {channels.map((c) => (
+          <div className="text-[10px] uppercase tracking-wider text-muted-foreground px-2 mt-1 mb-1">Text Channels</div>
+          {channels.filter(c => c.type === "text").map((c) => (
             <button
               key={c.id}
               onClick={() => setActiveChannel(c)}
               className={`w-full nav-item ${activeChannel?.id === c.id ? "nav-item-active" : ""}`}
             >
-              {c.type === "text" ? <Hash className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
+              <Hash className="h-4 w-4" />
               <span className="flex-1 text-left">{c.name}</span>
-              {c.type === "voice" && activeChannel?.id === c.id && <span className="h-1.5 w-1.5 rounded-full bg-success animate-pulse shadow-[0_0_8px_hsl(var(--success))]"></span>}
             </button>
           ))}
+          {channels.filter(c => c.type === "voice").length > 0 && (
+            <>
+              <div className="text-[10px] uppercase tracking-wider text-muted-foreground px-2 mt-3 mb-1">Voice Channels</div>
+              {channels.filter(c => c.type === "voice").map((c) => (
+                <button
+                  key={c.id}
+                  onClick={() => setActiveChannel(c)}
+                  className={`w-full nav-item ${activeChannel?.id === c.id ? "nav-item-active" : ""}`}
+                >
+                  <Volume2 className="h-4 w-4" />
+                  <span className="flex-1 text-left">{c.name}</span>
+                  {activeChannel?.id === c.id && (
+                    <span className="h-1.5 w-1.5 rounded-full bg-success animate-pulse shadow-[0_0_8px_hsl(var(--success))]" />
+                  )}
+                </button>
+              ))}
+            </>
+          )}
         </div>
       </div>
 
@@ -195,13 +244,33 @@ export default function Servers() {
           <div className="flex-1 grid place-items-center p-6">
             <div className="text-center max-w-sm panel p-8 flex flex-col items-center">
               <div className="h-16 w-16 bg-[hsl(var(--surface-3))] rounded-2xl grid place-items-center mb-6">
-                 <UsersIcon className="h-8 w-8 text-primary" />
+                <UsersIcon className="h-8 w-8 text-primary" />
               </div>
-              <div className="font-display font-bold text-3xl mb-3 text-foreground glow-accent">Join {activeServer?.name}</div>
-              <p className="text-sm text-muted-foreground mb-8">{activeServer?.description || "A secure space for students."}</p>
-              <button onClick={joinServer} className="h-10 px-8 rounded-full bg-primary text-primary-foreground text-sm font-bold hover:shadow-[0_0_15px_hsl(var(--primary)/0.5)] transition-all">
-                Join server
-              </button>
+              <div className="font-display font-bold text-3xl mb-3 text-foreground glow-accent">
+                {canJoin ? `Join ${activeServer?.name}` : activeServer?.name}
+              </div>
+              <p className="text-sm text-muted-foreground mb-6">
+                {activeServer?.description || "A secure space for students."}
+              </p>
+
+              {canJoin ? (
+                <button onClick={joinServer}
+                  className="h-10 px-8 rounded-full bg-primary text-primary-foreground text-sm font-bold hover:shadow-[0_0_15px_hsl(var(--primary)/0.5)] transition-all">
+                  Join server
+                </button>
+              ) : (
+                <div className="w-full">
+                  <div className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-destructive/10 border border-destructive/20 text-destructive text-sm font-medium mb-3">
+                    <span>🔒</span>
+                    <span>College-only server</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground text-center">
+                    {!myCollegeId
+                      ? "Your account isn't linked to a college. Update your profile to join college servers."
+                      : "This server is only open to students from that college."}
+                  </p>
+                </div>
+              )}
             </div>
           </div>
         ) : activeChannel?.type === "voice" ? (
@@ -290,11 +359,21 @@ export default function Servers() {
           <span className="text-xs text-muted-foreground ml-auto">{members.length}</span>
         </div>
         <div className="flex-1 overflow-auto p-2">
+          <div className="text-[10px] uppercase tracking-wider text-muted-foreground px-2 mb-2">Online — {members.length}</div>
           {members.map((m) => (
-            <div key={m.user_id} className="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-[hsl(var(--surface-2))]">
-              <div className="h-7 w-7 rounded-full bg-[hsl(var(--surface-3))] grid place-items-center text-xs">{m.display_name[0]}</div>
+            <div key={m.user_id} className="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-[hsl(var(--surface-2))] group cursor-pointer">
+              <div className="relative shrink-0">
+                <div className="h-8 w-8 rounded-full bg-[hsl(var(--surface-3))] grid place-items-center text-xs font-bold overflow-hidden">
+                  {m.avatar_url ? (
+                    <img src={m.avatar_url} alt={m.display_name} className="h-full w-full object-cover" />
+                  ) : (
+                    m.display_name[0]
+                  )}
+                </div>
+                <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-success border-2 border-[hsl(var(--surface-1))]" />
+              </div>
               <div className="min-w-0 flex-1">
-                <div className="text-sm truncate">{m.display_name}</div>
+                <div className="text-sm truncate font-medium">{m.display_name}</div>
                 <div className="text-xs text-muted-foreground truncate">@{m.username}</div>
               </div>
             </div>
@@ -305,7 +384,7 @@ export default function Servers() {
   );
 }
 
-function ServerIcon({ server, active, onClick }: { server: Server; active: boolean; onClick: () => void }) {
+function ServerIcon({ server, active, onClick, locked }: { server: Server; active: boolean; onClick: () => void; locked?: boolean }) {
   const initials = server.name
     .split(" ")
     .map((w) => w[0])
@@ -314,12 +393,16 @@ function ServerIcon({ server, active, onClick }: { server: Server; active: boole
   return (
     <button
       onClick={onClick}
-      title={server.name}
+      title={locked ? `${server.name} (college only)` : server.name}
       className={`relative h-10 w-10 rounded-md grid place-items-center text-xs font-semibold transition-all
-        ${active ? "bg-primary text-primary-foreground" : "bg-[hsl(var(--surface-2))] text-foreground hover:bg-[hsl(var(--surface-3))]"}`}
+        ${active ? "bg-primary text-primary-foreground" : "bg-[hsl(var(--surface-2))] text-foreground hover:bg-[hsl(var(--surface-3))]"}
+        ${locked ? "opacity-50" : ""}`}
     >
       {initials}
       {active && <span className="absolute -left-3 top-1.5 bottom-1.5 w-1 rounded-r bg-primary" />}
+      {locked && !active && (
+        <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-[hsl(var(--surface-1))] border border-border grid place-items-center text-[8px]">🔒</span>
+      )}
     </button>
   );
 }
