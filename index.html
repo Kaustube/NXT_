@@ -22,7 +22,44 @@
   <meta name="twitter:card" content="summary">
 </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <!-- Instant loading screen shown before React hydrates -->
+      <div id="initial-loader" style="
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: hsl(220, 10%, 4%);
+        flex-direction: column;
+        gap: 16px;
+        font-family: 'Outfit', system-ui, sans-serif;
+      ">
+        <div style="
+          height: 32px; width: 32px;
+          border-radius: 50%;
+          border: 2px solid hsl(180, 100%, 50%);
+          border-top-color: transparent;
+          animation: spin 0.7s linear infinite;
+        "></div>
+        <div style="color: hsl(220, 5%, 65%); font-size: 14px;">Loading NXT…</div>
+      </div>
+      <style>
+        @keyframes spin { to { transform: rotate(360deg); } }
+      </style>
+    </div>
+    <script>
+      // Remove the initial loader once React mounts
+      document.addEventListener('DOMContentLoaded', function() {
+        const observer = new MutationObserver(function() {
+          const loader = document.getElementById('initial-loader');
+          if (loader && document.getElementById('root').children.length > 1) {
+            loader.remove();
+            observer.disconnect();
+          }
+        });
+        observer.observe(document.getElementById('root'), { childList: true });
+      });
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
