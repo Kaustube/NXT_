@@ -388,7 +388,7 @@ export default function Auth() {
               <form onSubmit={handleLogin} className="mt-6 space-y-3">
                 <Field label="Email">
                   <input type="email" value={email} onChange={(e) => setEmail(e.target.value)}
-                    className="input" placeholder="you@bennett.edu.in" autoComplete="email" required />
+                    className="input" placeholder="your@email.com" autoComplete="email" required />
                 </Field>
                 <Field label="Password">
                   <PasswordInput

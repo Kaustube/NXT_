@@ -20,6 +20,7 @@ import {
   Briefcase,
   Target,
   Languages,
+  ShieldCheck,
 } from "lucide-react";
 import NotificationPanel from "@/components/NotificationPanel";
 import SettingsPanel from "@/components/SettingsPanel";
@@ -49,7 +50,7 @@ const NAV = [
 ];
 
 export default function AppLayout() {
-  const { user, signOut } = useAuth();
+  const { user, signOut, isAdmin } = useAuth();
   const { theme, toggle } = useTheme();
   const navigate = useNavigate();
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -108,6 +109,15 @@ export default function AppLayout() {
         </nav>
 
         <div className="p-3 border-t border-border">
+          {isAdmin && (
+            <NavLink
+              to="/admin"
+              className="flex items-center gap-2.5 px-2 py-2 rounded-lg mb-2 bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors text-sm font-semibold"
+            >
+              <ShieldCheck className="h-4 w-4" />
+              Admin Panel
+            </NavLink>
+          )}
           <div className="flex items-center gap-2.5 px-1">
             <div className="h-8 w-8 rounded-full bg-[hsl(var(--surface-3))] grid place-items-center text-sm font-medium">
               {profile?.display_name?.[0] ?? "?"}

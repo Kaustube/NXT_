@@ -49,7 +49,29 @@ export function RequireAdmin() {
 
   if (loading) return <LoadingScreen />;
   if (!user) return <Navigate to="/auth" replace state={{ from: location }} />;
-  if (!isAdmin) return <Navigate to="/" replace />;
+  
+  if (!isAdmin) {
+    return (
+      <div className="flex min-h-screen items-center justify-center flex-col gap-4 p-6">
+        <div className="text-6xl mb-4">🔒</div>
+        <h1 className="text-2xl font-bold">Admin access required</h1>
+        <p className="text-muted-foreground text-center max-w-md">
+          Your account doesn't have admin privileges. Contact a system administrator to request access.
+        </p>
+        <div className="flex gap-2 mt-4">
+          <a href="/" className="h-10 px-6 rounded-md bg-primary text-primary-foreground font-medium text-sm flex items-center">
+            Back to app
+          </a>
+        </div>
+        <div className="mt-6 text-xs text-muted-foreground font-mono">
+          User ID: {user.id}<br/>
+          Email: {user.email}<br/>
+          Admin: {isAdmin ? "true" : "false"}
+        </div>
+      </div>
+    );
+  }
+  
   return <Outlet />;
 }
 
