@@ -7,6 +7,7 @@ import { AuthProvider } from "@/context/AuthContext";
 import { ThemeProvider } from "@/context/ThemeContext";
 import { NotificationProvider } from "@/context/NotificationContext";
 import { RequireAuth, RequireAdmin, RedirectIfAuthed } from "@/components/RequireAuth";
+import { EmailVerificationBanner } from "@/components/EmailVerification";
 import AppLayout from "@/components/AppLayout";
 import AdminLayout from "@/components/AdminLayout";
 import Auth from "./pages/Auth";
@@ -28,6 +29,8 @@ import Profile from "./pages/Profile";
 import Opportunities from "./pages/Opportunities";
 import PlacementDashboard from "./pages/PlacementDashboard";
 import Languages from "./pages/Languages";
+import Help from "./pages/Help";
+import { EmailVerificationPage } from "@/components/EmailVerification";
 import NotFound from "./pages/NotFound";
 import AdminOverview from "./pages/admin/Overview";
 import AdminUsers from "./pages/admin/AdminUsers";
@@ -48,9 +51,13 @@ const App = () => (
         <TooltipProvider>
           <Toaster />
           <Sonner />
+          <EmailVerificationBanner />
           <BrowserRouter>
             <Routes>
               <Route path="/auth" element={<RedirectIfAuthed><Auth /></RedirectIfAuthed>} />
+              <Route path="/verify-email" element={<RequireAuth />}>
+                <Route index element={<EmailVerificationPage />} />
+              </Route>
 
               {/* Main app */}
               <Route element={<RequireAuth />}>
@@ -73,6 +80,7 @@ const App = () => (
                   <Route path="/opportunities" element={<Opportunities />} />
                   <Route path="/placement" element={<PlacementDashboard />} />
                   <Route path="/languages" element={<Languages />} />
+                  <Route path="/help" element={<Help />} />
                 </Route>
               </Route>
 

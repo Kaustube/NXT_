@@ -18,6 +18,8 @@ export default function Auth() {
   const [displayName, setDisplayName] = useState("");
   const [username, setUsername] = useState("");
   const [rollNumber, setRollNumber] = useState("");
+  const [selectedCollege, setSelectedCollege] = useState("");
+  const [colleges, setColleges] = useState<Array<{ id: string; name: string; email_domain: string }>>([]);
   const [showPassword, setShowPassword] = useState(false);
   const [busy, setBusy] = useState(false);
 
@@ -34,6 +36,15 @@ export default function Auth() {
 
   const { signIn, signUp } = useAuth();
   const navigate = useNavigate();
+
+  // Load colleges on mount
+  useEffect(() => {
+    async function loadColleges() {
+      const { data } = await supabase.from("colleges").select("id, name, email_domain").order("name");
+      if (data) setColleges(data);
+    }
+    void loadColleges();
+  }, []);
 
   // Cooldown timer for resend
   useEffect(() => {
@@ -68,6 +79,17 @@ export default function Auth() {
       toast.error("Password must be at least 6 characters");
       return;
     }
+    
+    // Verify email domain matches selected college
+    if (selectedCollege) {
+      const college = colleges.find(c => c.id === selectedCollege);
+      const emailDomain = email.split('@')[1];
+      if (college && emailDomain !== college.email_domain) {
+        toast.error(`Email must be from ${college.email_domain} domain for ${college.name}`);
+        return;
+      }
+    }
+    
     setBusy(true);
     const { error } = await signUp(email.trim(), password, {
       display_name: displayName.trim(),
@@ -75,7 +97,7 @@ export default function Auth() {
       roll_number: rollNumber.trim() || undefined,
     });
     if (error) { toast.error(error); setBusy(false); return; }
-    toast.success("Account created. Signing you in…");
+    toast.success("Account created! You'll be auto-joined to your college server.");
     const { error: e2 } = await signIn(email.trim(), password);
     setBusy(false);
     if (e2) toast.error(e2);
@@ -452,13 +474,36 @@ export default function Auth() {
                   <input value={username} onChange={(e) => setUsername(e.target.value)}
                     className="input" placeholder="Choose a username" autoComplete="off" required />
                 </Field>
-                <Field label="Roll number (optional)">
-                  <input value={rollNumber} onChange={(e) => setRollNumber(e.target.value)}
-                    className="input" placeholder="e.g. S24CSEU1380" autoComplete="off" />
+                <Field label="College">
+                  <select 
+                    value={selectedCollege} 
+                    onChange={(e) => setSelectedCollege(e.target.value)}
+                    className="input"
+                    required
+                  >
+                    <option value="">Select your college</option>
+                    {colleges.map((college) => (
+                      <option key={college.id} value={college.id}>
+                        {college.name} (@{college.email_domain})
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    You'll auto-join your college server
+                  </p>
                 </Field>
                 <Field label="Email">
                   <input type="email" value={email} onChange={(e) => setEmail(e.target.value)}
-                    className="input" placeholder="your@email.com" autoComplete="off" required />
+                    className="input" placeholder="your@college.edu" autoComplete="off" required />
+                  {selectedCollege && (
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Use your {colleges.find(c => c.id === selectedCollege)?.email_domain} email
+                    </p>
+                  )}
+                </Field>
+                <Field label="Roll number (optional)">
+                  <input value={rollNumber} onChange={(e) => setRollNumber(e.target.value)}
+                    className="input" placeholder="e.g. S24CSEU1380" autoComplete="off" />
                 </Field>
                 <Field label="Password">
                   <PasswordInput
