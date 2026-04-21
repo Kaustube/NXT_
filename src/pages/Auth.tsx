@@ -222,7 +222,7 @@ export default function Auth() {
             and direct messages — without the noise.
           </p>
           <div className="grid grid-cols-3 gap-3 pt-4">
-            {["Bennett", "IIT Delhi", "Delhi University"].map((c) => (
+            {["IITs", "NITs", "BITS"].map((c) => (
               <div key={c} className="panel p-3 text-xs text-muted-foreground">{c}</div>
             ))}
           </div>
@@ -272,7 +272,7 @@ export default function Auth() {
                         value={forgotEmail}
                         onChange={(e) => setForgotEmail(e.target.value)}
                         className="input"
-                        placeholder="kaustubh1780@gmail.com"
+                        placeholder="your@college.edu"
                         autoComplete="email"
                         required
                       />
@@ -503,7 +503,7 @@ export default function Auth() {
                 </Field>
                 <Field label="Roll number (optional)">
                   <input value={rollNumber} onChange={(e) => setRollNumber(e.target.value)}
-                    className="input" placeholder="e.g. S24CSEU1380" autoComplete="off" />
+                    className="input" placeholder="e.g. 2021CS001" autoComplete="off" />
                 </Field>
                 <Field label="Password">
                   <PasswordInput
