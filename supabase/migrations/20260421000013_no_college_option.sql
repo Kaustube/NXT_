@@ -25,11 +25,7 @@ DROP POLICY IF EXISTS "Servers readable by authenticated" ON public.servers;
 CREATE POLICY "Servers readable by authenticated" ON public.servers FOR SELECT TO authenticated
 USING (
   kind = 'global' OR -- Public servers visible to all
-  (kind = 'college' AND public.has_college_access(auth.uid())) OR -- College servers only if has access
-  (kind = 'group' AND (
-    is_private = false OR
-    EXISTS (SELECT 1 FROM public.server_members sm WHERE sm.server_id = servers.id AND sm.user_id = auth.uid())
-  ))
+  (kind = 'college' AND public.has_college_access(auth.uid())) -- College servers only if has access
 );
 
 -- Restrict LMS access (if courses table exists)
