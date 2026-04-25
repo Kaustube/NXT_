@@ -80,8 +80,8 @@ export default function Auth() {
       return;
     }
     
-    // Verify email domain matches selected college
-    if (selectedCollege) {
+    // Verify email domain matches selected college (skip for "No College")
+    if (selectedCollege && selectedCollege !== '00000000-0000-0000-0000-000000000000') {
       const college = colleges.find(c => c.id === selectedCollege);
       const emailDomain = email.split('@')[1];
       if (college && emailDomain !== college.email_domain) {
@@ -95,6 +95,7 @@ export default function Auth() {
       display_name: displayName.trim(),
       username: username.trim().toLowerCase(),
       roll_number: rollNumber.trim() || undefined,
+      college_id: selectedCollege || undefined,
     });
     if (error) { toast.error(error); setBusy(false); return; }
     toast.success("Account created! You'll be auto-joined to your college server.");
@@ -477,18 +478,24 @@ export default function Auth() {
                     value={selectedCollege} 
                     onChange={(e) => setSelectedCollege(e.target.value)}
                     className="input"
-                    required
                   >
                     <option value="">Select your college</option>
-                    {colleges.map((college) => (
+                    <option value="00000000-0000-0000-0000-000000000000">No College / Independent</option>
+                    {colleges.filter(c => c.id !== '00000000-0000-0000-0000-000000000000').map((college) => (
                       <option key={college.id} value={college.id}>
                         {college.name} (@{college.email_domain})
                       </option>
                     ))}
                   </select>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    You'll auto-join your college server
-                  </p>
+                  {selectedCollege === '00000000-0000-0000-0000-000000000000' ? (
+                    <p className="text-xs text-muted-foreground mt-1">
+                      ⚠️ You won't have access to college servers, LMS, or sports booking
+                    </p>
+                  ) : selectedCollege ? (
+                    <p className="text-xs text-muted-foreground mt-1">
+                      You'll auto-join your college server
+                    </p>
+                  ) : null}
                 </Field>
                 <Field label="Email">
                   <input type="email" value={email} onChange={(e) => setEmail(e.target.value)}
