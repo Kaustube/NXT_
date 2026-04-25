@@ -221,10 +221,8 @@ export default function Auth() {
             Servers for your college and your interests. Tasks, marketplace, events,
             and direct messages — without the noise.
           </p>
-          <div className="grid grid-cols-3 gap-3 pt-4">
-            {["IITs", "NITs", "BITS"].map((c) => (
-              <div key={c} className="panel p-3 text-xs text-muted-foreground">{c}</div>
-            ))}
+          <div className="pt-4 text-sm text-muted-foreground/70">
+            Connect with students across colleges
           </div>
         </div>
         <div className="text-xs text-muted-foreground/50">© 2026 NXT Campus</div>
