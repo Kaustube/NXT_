@@ -1,5 +1,5 @@
 // App version - increment this to force users to clear cache
-export const APP_VERSION = '2.3.0';
+export const APP_VERSION = '2.4.0';
 
 // Check if user needs to clear cache
 export function checkVersion() {

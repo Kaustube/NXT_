@@ -1,4 +1,4 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
@@ -8,6 +8,7 @@ import { ThemeProvider } from "@/context/ThemeContext";
 import { NotificationProvider } from "@/context/NotificationContext";
 import { RequireAuth, RequireAdmin, RedirectIfAuthed } from "@/components/RequireAuth";
 import { EmailVerificationBanner } from "@/components/EmailVerification";
+import { queryClient } from "@/lib/queryClient";
 import AppLayout from "@/components/AppLayout";
 import AdminLayout from "@/components/AdminLayout";
 import Auth from "./pages/Auth";
@@ -40,8 +41,6 @@ import AdminSports from "./pages/admin/AdminSports";
 import AdminLMS from "./pages/admin/AdminLMS";
 import AdminEvents from "./pages/admin/AdminEvents";
 import AdminNotifications from "./pages/admin/AdminNotifications";
-
-const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
