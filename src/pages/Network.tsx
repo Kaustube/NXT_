@@ -61,12 +61,12 @@ export default function Network() {
     return statusFor(other)?.status === "accepted";
   }
 
-  // Private profiles only visible if connected OR searching by exact username
+  // Private profiles only visible if connected OR searching by username (partial match)
   function canViewProfile(p: Profile): boolean {
     if (p.profile_visibility === "public") return true;
     if (isConnected(p.user_id)) return true;
-    // Allow finding by exact username search
-    if (search.trim() && p.username.toLowerCase() === search.trim().toLowerCase()) return true;
+    // Allow finding by username search (partial match)
+    if (search.trim() && p.username.toLowerCase().includes(search.trim().toLowerCase())) return true;
     return false;
   }
 
