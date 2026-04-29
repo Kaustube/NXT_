@@ -4,6 +4,7 @@ import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Mail, ArrowLeft, KeyRound, Eye, EyeOff, ShieldCheck, RefreshCw } from "lucide-react";
+import CacheClearer from "@/components/CacheClearer";
 
 // forgot flow steps
 type ForgotStep = "email" | "code" | "newpass" | "done";
@@ -26,7 +27,7 @@ export default function Auth() {
   // forgot-password flow
   const [forgotEmail, setForgotEmail] = useState("");
   const [forgotStep, setForgotStep] = useState<ForgotStep>("email");
-  const [otp, setOtp] = useState(["", "", "", "", "", ""]);
+  const [otp, setOtp] = useState(["", "", "", "", "", "", "", ""]);  // 8 digits — Supabase sends 8-digit codes
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showNew, setShowNew] = useState(false);
@@ -65,7 +66,7 @@ export default function Auth() {
     const { error } = await signIn(email.trim(), password);
     setBusy(false);
     if (error) toast.error(error);
-    else navigate("/");
+    else navigate("/dashboard");
   }
 
   // ── Register ───────────────────────────────────────────────────────────────
@@ -102,7 +103,7 @@ export default function Auth() {
     const { error: e2 } = await signIn(email.trim(), password);
     setBusy(false);
     if (e2) toast.error(e2);
-    else navigate("/");
+    else navigate("/dashboard");
   }
 
   // ── Forgot: Step 1 — send OTP ──────────────────────────────────────────────
@@ -143,7 +144,7 @@ export default function Auth() {
   async function verifyOtp(e: React.FormEvent) {
     e.preventDefault();
     const code = otp.join("");
-    if (code.length < 6) { toast.error("Enter the full 6-digit code"); return; }
+    if (code.length < 8) { toast.error("Enter the full 8-digit code"); return; }
     setBusy(true);
     // Try OTP type first, fall back to magiclink
     let result = await supabase.auth.verifyOtp({
@@ -181,7 +182,7 @@ export default function Auth() {
     const next = [...otp];
     next[i] = digit;
     setOtp(next);
-    if (digit && i < 5) otpRefs.current[i + 1]?.focus();
+    if (digit && i < 7) otpRefs.current[i + 1]?.focus();
   }
 
   function handleOtpKeyDown(i: number, e: React.KeyboardEvent) {
@@ -191,17 +192,17 @@ export default function Auth() {
   }
 
   function handleOtpPaste(e: React.ClipboardEvent) {
-    const text = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, 6);
-    if (text.length === 6) {
+    const text = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, 8);
+    if (text.length === 8) {
       setOtp(text.split(""));
-      otpRefs.current[5]?.focus();
+      otpRefs.current[7]?.focus();
     }
   }
 
   function resetForgot() {
     setForgotStep("email");
     setForgotEmail("");
-    setOtp(["", "", "", "", "", ""]);
+    setOtp(["", "", "", "", "", "", "", ""]);
     setNewPassword("");
     setConfirmPassword("");
   }
@@ -227,6 +228,9 @@ export default function Auth() {
           </div>
         </div>
         <div className="text-xs text-muted-foreground/50">© 2026 NXT Campus</div>
+        <div className="mt-2">
+          <CacheClearer />
+        </div>
       </div>
 
       {/* Right form panel */}
@@ -293,13 +297,13 @@ export default function Auth() {
                     </div>
                     <h2 className="text-xl font-semibold">Enter the code</h2>
                     <p className="text-sm text-muted-foreground mt-1">
-                      Sent to <span className="font-medium text-foreground">{forgotEmail}</span>
+                      We sent an <span className="font-medium text-foreground">8-digit code</span> to {forgotEmail}
                     </p>
                   </div>
 
                   <form onSubmit={verifyOtp} className="space-y-5">
-                    {/* OTP boxes */}
-                    <div className="flex gap-2 justify-center" onPaste={handleOtpPaste}>
+                    {/* OTP boxes — 8 digits */}
+                    <div className="flex gap-1.5 justify-center" onPaste={handleOtpPaste}>
                       {otp.map((digit, i) => (
                         <input
                           key={i}
@@ -310,13 +314,13 @@ export default function Auth() {
                           value={digit}
                           onChange={(e) => handleOtpChange(i, e.target.value)}
                           onKeyDown={(e) => handleOtpKeyDown(i, e)}
-                          className="w-11 h-13 text-center text-xl font-bold rounded-lg bg-[hsl(var(--input))] border-2 border-border focus:border-primary focus:outline-none transition-colors"
-                          style={{ height: "3.25rem" }}
+                          className="w-9 text-center text-lg font-bold rounded-lg bg-[hsl(var(--input))] border-2 border-border focus:border-primary focus:outline-none transition-colors"
+                          style={{ height: "2.75rem" }}
                         />
                       ))}
                     </div>
 
-                    <button type="submit" disabled={busy || otp.join("").length < 6}
+                    <button type="submit" disabled={busy || otp.join("").length < 8}
                       className="w-full h-10 rounded-md bg-primary text-primary-foreground font-medium text-sm hover:opacity-90 transition disabled:opacity-60">
                       {busy ? "Verifying…" : "Verify code"}
                     </button>

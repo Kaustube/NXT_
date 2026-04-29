@@ -5,6 +5,7 @@ const GAMES = [
   { slug: "tictactoe", name: "Tic Tac Toe", desc: "Two players, one grid." },
   { slug: "quiz", name: "Quick Quiz", desc: "Ten general knowledge questions, no time pressure." },
   { slug: "memory", name: "Memory", desc: "Match pairs in as few flips as possible." },
+  { slug: "chess", name: "Chess", desc: "Classic chess - play with friend or computer." },
 ];
 
 export default function Games() {

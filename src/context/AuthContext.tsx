@@ -89,6 +89,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let done = false;
+    let refreshInterval: ReturnType<typeof setInterval> | null = null;
 
     // Hard timeout — never stay loading more than 3 seconds
     const timeout = setTimeout(() => {
@@ -99,22 +100,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }, 3000);
 
     // Auth state changes (sign in / sign out after initial load)
-    const { data: sub } = supabase.auth.onAuthStateChange(async (_event, s) => {
-      setSession(s);
-      setUser(s?.user ?? null);
-      if (s?.user) {
-        const roleData = await checkUserRoles(s.user.id);
-        setRoles(roleData.roles);
-        setIsAdmin(roleData.isAdmin);
-        setIsProfessor(roleData.isProfessor);
-        setIsServerAdmin(roleData.isServerAdmin);
-        setEmailVerified(roleData.emailVerified);
-      } else {
+    const { data: sub } = supabase.auth.onAuthStateChange(async (event, s) => {
+      console.log('🔐 Auth event:', event);
+      
+      // Handle different auth events
+      if (event === 'SIGNED_OUT') {
+        setSession(null);
+        setUser(null);
         setRoles(['member']);
         setIsAdmin(false);
         setIsProfessor(false);
         setIsServerAdmin(false);
         setEmailVerified(false);
+        if (refreshInterval) clearInterval(refreshInterval);
+        return;
+      }
+
+      if (event === 'TOKEN_REFRESHED') {
+        console.log('✅ Token refreshed successfully');
+      }
+
+      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION') {
+        setSession(s);
+        setUser(s?.user ?? null);
+        
+        if (s?.user) {
+          const roleData = await checkUserRoles(s.user.id);
+          setRoles(roleData.roles);
+          setIsAdmin(roleData.isAdmin);
+          setIsProfessor(roleData.isProfessor);
+          setIsServerAdmin(roleData.isServerAdmin);
+          setEmailVerified(roleData.emailVerified);
+        }
       }
     });
 
@@ -122,6 +139,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     supabase.auth.getSession().then(async ({ data: { session: s } }) => {
       setSession(s);
       setUser(s?.user ?? null);
+      
       if (s?.user) {
         const roleData = await checkUserRoles(s.user.id);
         setRoles(roleData.roles);
@@ -129,13 +147,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setIsProfessor(roleData.isProfessor);
         setIsServerAdmin(roleData.isServerAdmin);
         setEmailVerified(roleData.emailVerified);
+
+        // Set up periodic session refresh (every 4 minutes)
+        // JWT tokens typically expire after 1 hour, but we refresh proactively
+        refreshInterval = setInterval(async () => {
+          console.log('🔄 Proactive session refresh...');
+          const { data, error } = await supabase.auth.refreshSession();
+          if (error) {
+            console.error('❌ Session refresh failed:', error);
+          } else if (data.session) {
+            console.log('✅ Session refreshed proactively');
+            setSession(data.session);
+            setUser(data.session.user);
+          }
+        }, 4 * 60 * 1000); // 4 minutes
       }
+      
       if (!done) {
         done = true;
         clearTimeout(timeout);
         setLoading(false);
       }
-    }).catch(() => {
+    }).catch((error) => {
+      console.error('❌ Session check failed:', error);
       // Supabase unreachable — still unblock the app
       if (!done) {
         done = true;
@@ -146,6 +180,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     return () => {
       clearTimeout(timeout);
+      if (refreshInterval) clearInterval(refreshInterval);
       sub.subscription.unsubscribe();
     };
   }, []);
@@ -181,12 +216,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signOut = async () => {
+    // Sign out from Supabase first (this invalidates the token server-side)
     await supabase.auth.signOut();
+    
+    // Clear auth state
     setIsAdmin(false);
     setIsProfessor(false);
     setIsServerAdmin(false);
     setRoles(['member']);
     setEmailVerified(false);
+    setUser(null);
+    setSession(null);
+    
+    // Navigate to auth — do NOT clear localStorage here.
+    // Clearing localStorage removes the Supabase session token and causes
+    // the "clear site data → re-login" loop. Supabase's signOut() already
+    // removes its own keys from localStorage cleanly.
+    window.location.href = '/auth';
   };
 
   return (

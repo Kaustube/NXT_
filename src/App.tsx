@@ -11,6 +11,7 @@ import { EmailVerificationBanner } from "@/components/EmailVerification";
 import { queryClient } from "@/lib/queryClient";
 import AppLayout from "@/components/AppLayout";
 import AdminLayout from "@/components/AdminLayout";
+import Landing from "./pages/Landing";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import Servers from "./pages/Servers";
@@ -23,6 +24,7 @@ import Wordle from "./pages/games/Wordle";
 import TicTacToe from "./pages/games/TicTacToe";
 import Quiz from "./pages/games/Quiz";
 import Memory from "./pages/games/Memory";
+import Chess from "./pages/games/Chess";
 import Learn from "./pages/Learn";
 import LMS from "./pages/LMS";
 import Sports from "./pages/Sports";
@@ -53,6 +55,7 @@ const App = () => (
           <EmailVerificationBanner />
           <BrowserRouter>
             <Routes>
+              <Route path="/" element={<RedirectIfAuthed><Landing /></RedirectIfAuthed>} />
               <Route path="/auth" element={<RedirectIfAuthed><Auth /></RedirectIfAuthed>} />
               <Route path="/verify-email" element={<RequireAuth />}>
                 <Route index element={<EmailVerificationPage />} />
@@ -61,7 +64,7 @@ const App = () => (
               {/* Main app */}
               <Route element={<RequireAuth />}>
                 <Route element={<AppLayout />}>
-                  <Route path="/" element={<Dashboard />} />
+                  <Route path="/dashboard" element={<Dashboard />} />
                   <Route path="/servers" element={<Servers />} />
                   <Route path="/messages" element={<Messages />} />
                   <Route path="/network" element={<Network />} />
@@ -72,6 +75,7 @@ const App = () => (
                   <Route path="/games/tictactoe" element={<TicTacToe />} />
                   <Route path="/games/quiz" element={<Quiz />} />
                   <Route path="/games/memory" element={<Memory />} />
+                  <Route path="/games/chess" element={<Chess />} />
                   <Route path="/learn" element={<Learn />} />
                   <Route path="/lms" element={<LMS />} />
                   <Route path="/sports" element={<Sports />} />

@@ -16,11 +16,34 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
     autoRefreshToken: true,
     detectSessionInUrl: true,
     flowType: 'pkce',
+    storageKey: 'sb-auth-token',
+    // Debug mode to see what's happening
+    debug: import.meta.env.DEV,
   },
   global: {
     headers: {
-      'cache-control': 'no-cache',
+      'cache-control': 'no-cache, no-store, must-revalidate',
       'pragma': 'no-cache',
+      'expires': '0',
+    },
+  },
+  db: {
+    schema: 'public',
+  },
+  realtime: {
+    params: {
+      eventsPerSecond: 10,
     },
   },
 });
+
+// Monitor session changes and log them (dev only)
+if (import.meta.env.DEV) {
+  supabase.auth.onAuthStateChange((event, session) => {
+    console.log('🔐 Auth State Change:', event, {
+      hasSession: !!session,
+      userId: session?.user?.id,
+      expiresAt: session?.expires_at ? new Date(session.expires_at * 1000).toLocaleString() : 'N/A',
+    });
+  });
+}

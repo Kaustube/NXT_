@@ -78,6 +78,6 @@ export function RequireAdmin() {
 export function RedirectIfAuthed({ children }: { children: JSX.Element }) {
   const { user, loading } = useAuth();
   if (loading) return <LoadingScreen />;
-  if (user) return <Navigate to="/" replace />;
+  if (user) return <Navigate to="/dashboard" replace />;
   return children;
 }
