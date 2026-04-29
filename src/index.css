@@ -140,3 +140,46 @@
 ::-webkit-scrollbar { width: 8px; height: 8px; }
 ::-webkit-scrollbar-thumb { background: hsl(var(--surface-3)); border-radius: 8px; }
 ::-webkit-scrollbar-thumb:hover { background: hsl(var(--border)); }
+
+/* ── Mobile safe area support ── */
+.safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
+.safe-top    { padding-top: env(safe-area-inset-top); }
+
+/* ── Touch targets: minimum 44px ── */
+@media (max-width: 768px) {
+  button, a, [role="button"] {
+    min-height: 36px;
+  }
+  /* Reduce nav-item padding on mobile */
+  .nav-item {
+    @apply px-3 py-2.5 text-xs;
+  }
+  /* Tighter page padding on mobile */
+  .page-pad {
+    @apply px-4 py-4;
+  }
+}
+
+/* ── Prevent horizontal overflow ── */
+html, body, #root {
+  overflow-x: hidden;
+  max-width: 100vw;
+}
+
+/* ── Mobile bottom nav safe area ── */
+.mobile-nav {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* ── Smooth scrolling ── */
+* {
+  -webkit-tap-highlight-color: transparent;
+  scroll-behavior: smooth;
+}
+
+/* ── Input zoom prevention on iOS ── */
+@media (max-width: 768px) {
+  input, select, textarea {
+    font-size: 16px !important;
+  }
+}

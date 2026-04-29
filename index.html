@@ -2,7 +2,12 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="NXT" />
+    <meta name="theme-color" content="#0a0a0f" />
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
     <meta http-equiv="Pragma" content="no-cache" />
     <meta http-equiv="Expires" content="0" />
@@ -15,18 +20,15 @@
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 
-    
-    
     <meta property="og:type" content="website" />
     <meta property="og:title" content="NXT — Student Super App">
-  <meta name="twitter:title" content="NXT — Student Super App">
-  <meta property="og:description" content="NXT is a single home for college life — servers, chats, tasks, marketplace, events and more.">
-  <meta name="twitter:description" content="NXT is a single home for college life — servers, chats, tasks, marketplace, events and more.">
-  <meta name="twitter:card" content="summary">
-</head>
+    <meta name="twitter:title" content="NXT — Student Super App">
+    <meta property="og:description" content="NXT is a single home for college life — servers, chats, tasks, marketplace, events and more.">
+    <meta name="twitter:description" content="NXT is a single home for college life — servers, chats, tasks, marketplace, events and more.">
+    <meta name="twitter:card" content="summary">
+  </head>
   <body>
     <div id="root">
-      <!-- Instant loading screen shown before React hydrates -->
       <div id="initial-loader" style="
         min-height: 100vh;
         display: flex;
@@ -51,7 +53,6 @@
       </style>
     </div>
     <script>
-      // Remove the initial loader once React mounts
       document.addEventListener('DOMContentLoaded', function() {
         const observer = new MutationObserver(function() {
           const loader = document.getElementById('initial-loader');

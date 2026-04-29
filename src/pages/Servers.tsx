@@ -175,9 +175,9 @@ export default function Servers() {
     : myCollegeId !== null && myCollegeId === activeServer.college_id;
 
   return (
-    <div className="flex h-[calc(100vh-3.5rem)]">
+    <div className="flex h-[calc(100vh-3.5rem)] md:h-[calc(100vh-3.5rem)]" style={{ height: 'calc(100dvh - 3.5rem - env(safe-area-inset-bottom, 0px))' }}>
       {/* Server rail */}
-      <div className="w-16 shrink-0 border-r border-border bg-[hsl(var(--surface-1))] py-3 flex flex-col items-center gap-2 overflow-auto">
+      <div className="w-12 md:w-16 shrink-0 border-r border-border bg-[hsl(var(--surface-1))] py-3 flex flex-col items-center gap-2 overflow-auto">
         {collegeServers.map((s) => (
           <ServerIcon key={s.id} server={s} active={activeServer?.id === s.id}
             locked={s.kind === "college" && !memberships.has(s.id) && !(myCollegeId && myCollegeId === s.college_id)}
@@ -189,27 +189,24 @@ export default function Servers() {
         ))}
       </div>
 
-      {/* Channel sidebar */}
-      <div className="w-60 shrink-0 hidden md:flex flex-col border-r border-border bg-[hsl(var(--sidebar-background))]">
-        <div className="px-4 h-12 flex items-center justify-between border-b border-border">
+      {/* Channel sidebar — hidden on mobile unless no active channel */}
+      <div className={`w-52 shrink-0 border-r border-border bg-[hsl(var(--sidebar-background))] flex-col ${activeChannel ? 'hidden md:flex' : 'flex'}`}>
+        <div className="px-3 h-12 flex items-center justify-between border-b border-border">
           <div className="text-sm font-semibold truncate">{activeServer?.name ?? "—"}</div>
           {isMember && (
-            <span className="text-[10px] px-1.5 py-0.5 rounded bg-primary/20 text-primary font-bold">Member</span>
+            <span className="text-[10px] px-1.5 py-0.5 rounded bg-primary/20 text-primary font-bold shrink-0">Member</span>
           )}
         </div>
         {activeServer?.description && (
-          <div className="px-4 py-2 text-xs text-muted-foreground border-b border-border/50 bg-[hsl(var(--surface-1))]">
+          <div className="px-3 py-2 text-xs text-muted-foreground border-b border-border/50 bg-[hsl(var(--surface-1))]">
             {activeServer.description}
           </div>
         )}
         <div className="flex-1 overflow-auto p-2">
           <div className="text-[10px] uppercase tracking-wider text-muted-foreground px-2 mt-1 mb-1">Text Channels</div>
           {channels.filter(c => c.type === "text").map((c) => (
-            <button
-              key={c.id}
-              onClick={() => setActiveChannel(c)}
-              className={`w-full nav-item ${activeChannel?.id === c.id ? "nav-item-active" : ""}`}
-            >
+            <button key={c.id} onClick={() => setActiveChannel(c)}
+              className={`w-full nav-item ${activeChannel?.id === c.id ? "nav-item-active" : ""}`}>
               <Hash className="h-4 w-4" />
               <span className="flex-1 text-left">{c.name}</span>
             </button>
@@ -218,16 +215,10 @@ export default function Servers() {
             <>
               <div className="text-[10px] uppercase tracking-wider text-muted-foreground px-2 mt-3 mb-1">Voice Channels</div>
               {channels.filter(c => c.type === "voice").map((c) => (
-                <button
-                  key={c.id}
-                  onClick={() => setActiveChannel(c)}
-                  className={`w-full nav-item ${activeChannel?.id === c.id ? "nav-item-active" : ""}`}
-                >
+                <button key={c.id} onClick={() => setActiveChannel(c)}
+                  className={`w-full nav-item ${activeChannel?.id === c.id ? "nav-item-active" : ""}`}>
                   <Volume2 className="h-4 w-4" />
                   <span className="flex-1 text-left">{c.name}</span>
-                  {activeChannel?.id === c.id && (
-                    <span className="h-1.5 w-1.5 rounded-full bg-success animate-pulse shadow-[0_0_8px_hsl(var(--success))]" />
-                  )}
                 </button>
               ))}
             </>
@@ -238,6 +229,15 @@ export default function Servers() {
       {/* Chat */}
       <div className="flex-1 min-w-0 flex flex-col">
         <div className="h-12 hairline px-4 flex items-center gap-2">
+          {/* Mobile back to channel list */}
+          {activeChannel && (
+            <button
+              className="md:hidden h-8 w-8 grid place-items-center rounded-md text-muted-foreground hover:text-foreground mr-1"
+              onClick={() => setActiveChannel(null)}
+            >
+              ‹
+            </button>
+          )}
           {activeChannel && (
             <>
               {activeChannel.type === "text" ? <Hash className="h-4 w-4 text-muted-foreground" /> : <Volume2 className="h-4 w-4 text-success" />}
