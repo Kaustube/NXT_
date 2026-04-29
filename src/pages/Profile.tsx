@@ -75,13 +75,15 @@ export default function ProfilePage() {
 
   async function loadAll() {
     if (!user) return;
+
+    // Run queries with individual error handling so one failure doesn't break everything
     const [
       { data: prof },
       { data: streakData },
-      { count: connCount },
-      { count: msgCount },
-      { count: evCount },
-      { count: subCount },
+      connResult,
+      msgResult,
+      evResult,
+      subResult,
     ] = await Promise.all([
       supabase.from("profiles").select("*").eq("user_id", user.id).maybeSingle(),
       supabase.from("user_streaks").select("*").eq("user_id", user.id).maybeSingle(),
@@ -90,7 +92,10 @@ export default function ProfilePage() {
         .eq("status", "accepted"),
       supabase.from("channel_messages").select("*", { count: "exact", head: true }).eq("author_id", user.id),
       supabase.from("event_registrations").select("*", { count: "exact", head: true }).eq("user_id", user.id),
-      supabase.from("challenge_submissions").select("*", { count: "exact", head: true }).eq("user_id", user.id),
+      // challenge_submissions may not exist yet — catch gracefully
+      supabase.from("challenge_submissions").select("*", { count: "exact", head: true }).eq("user_id", user.id)
+        .then(r => r)
+        .catch(() => ({ count: 0 })),
     ]);
 
     const profile = prof as Profile | null;
@@ -109,10 +114,10 @@ export default function ProfilePage() {
     }
     setStreak(streakData as Streak | null);
     setStats({
-      connections: connCount ?? 0,
-      messages: msgCount ?? 0,
-      events: evCount ?? 0,
-      submissions: subCount ?? 0,
+      connections: connResult.count ?? 0,
+      messages: msgResult.count ?? 0,
+      events: evResult.count ?? 0,
+      submissions: (subResult as any).count ?? 0,
     });
 
     // Update streak on profile visit

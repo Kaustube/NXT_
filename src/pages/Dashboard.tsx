@@ -1,19 +1,17 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
-import { Plus, Check, Trash2, Flame, Trophy, CalendarDays, Dumbbell } from "lucide-react";
+import {
+  Plus, Check, Trash2, Flame, CalendarDays,
+  Users, MessageSquare, Trophy, ArrowRight,
+  Server, Gamepad2, BookOpen, ShoppingBag,
+} from "lucide-react";
 import { toast } from "sonner";
 import {
-  format,
-  startOfMonth,
-  endOfMonth,
-  eachDayOfInterval,
-  isSameDay,
-  isSameMonth,
-  addMonths,
-  subMonths,
+  format, startOfMonth, endOfMonth, eachDayOfInterval,
+  isSameDay, isSameMonth, addMonths, subMonths, isPast, isToday,
 } from "date-fns";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 
 type Task = {
   id: string;
@@ -23,30 +21,39 @@ type Task = {
   created_at: string;
 };
 
-type Booking = {
+type UpcomingEvent = {
   id: string;
-  court_name: string;
-  slot_time: string;
-  booking_date: string;
-  status: string;
+  title: string;
+  kind: string;
+  starts_at: string;
+  location: string | null;
 };
 
-type Streak = {
-  current_streak: number;
-  longest_streak: number;
-};
+type Streak = { current_streak: number; longest_streak: number };
+
+const QUICK_LINKS = [
+  { to: "/servers", label: "Servers", icon: Server, color: "text-blue-400 bg-blue-400/10" },
+  { to: "/events", label: "Events", icon: CalendarDays, color: "text-purple-400 bg-purple-400/10" },
+  { to: "/lms", label: "LMS", icon: BookOpen, color: "text-green-400 bg-green-400/10" },
+  { to: "/games", label: "Games", icon: Gamepad2, color: "text-orange-400 bg-orange-400/10" },
+  { to: "/network", label: "Network", icon: Users, color: "text-cyan-400 bg-cyan-400/10" },
+  { to: "/marketplace", label: "Market", icon: ShoppingBag, color: "text-pink-400 bg-pink-400/10" },
+];
 
 export default function Dashboard() {
   const { user } = useAuth();
   const navigate = useNavigate();
+
   const [tasks, setTasks] = useState<Task[]>([]);
   const [newTask, setNewTask] = useState("");
+  const [newTaskDate, setNewTaskDate] = useState("");
+  const [showDatePicker, setShowDatePicker] = useState(false);
   const [stats, setStats] = useState({ tasks: 0, messages: 0, events: 0, connections: 0 });
-  const [activity, setActivity] = useState<Array<{ kind: string; text: string; at: string }>>([]);
+  const [upcomingEvents, setUpcomingEvents] = useState<UpcomingEvent[]>([]);
   const [month, setMonth] = useState(new Date());
   const [profileName, setProfileName] = useState("");
-  const [bookings, setBookings] = useState<Booking[]>([]);
   const [streak, setStreak] = useState<Streak | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!user) return;
@@ -55,214 +62,318 @@ export default function Dashboard() {
 
   async function loadAll() {
     if (!user) return;
+    setLoading(true);
+
     const [
       { data: tk },
-      { count: msgCount },
-      { count: evCount },
-      { count: connCount },
+      msgResult,
+      evResult,
+      connResult,
       { data: prof },
-      { data: bk },
       { data: streakData },
+      { data: evUpcoming },
     ] = await Promise.all([
-      supabase.from("tasks").select("*").eq("user_id", user.id).order("created_at", { ascending: false }),
+      supabase.from("tasks").select("*").eq("user_id", user.id).order("due_date", { ascending: true, nullsFirst: false }).order("created_at", { ascending: false }),
       supabase.from("channel_messages").select("*", { count: "exact", head: true }).eq("author_id", user.id),
       supabase.from("event_registrations").select("*", { count: "exact", head: true }).eq("user_id", user.id),
       supabase.from("connections").select("*", { count: "exact", head: true })
         .or(`requester_id.eq.${user.id},recipient_id.eq.${user.id}`)
         .eq("status", "accepted"),
       supabase.from("profiles").select("display_name").eq("user_id", user.id).maybeSingle(),
-      supabase.from("sports_bookings").select("*").eq("user_id", user.id)
-        .gte("booking_date", format(new Date(), "yyyy-MM-dd"))
-        .order("booking_date").order("slot_time").limit(5),
       supabase.from("user_streaks").select("current_streak, longest_streak").eq("user_id", user.id).maybeSingle(),
+      supabase.from("events").select("id, title, kind, starts_at, location")
+        .gte("starts_at", new Date().toISOString())
+        .order("starts_at", { ascending: true })
+        .limit(3),
     ]);
 
     setTasks((tk as Task[]) ?? []);
     setStats({
       tasks: (tk ?? []).filter((t: Task) => !t.completed).length,
-      messages: msgCount ?? 0,
-      events: evCount ?? 0,
-      connections: connCount ?? 0,
+      messages: msgResult.count ?? 0,
+      events: evResult.count ?? 0,
+      connections: connResult.count ?? 0,
     });
     setProfileName(prof?.display_name ?? "");
-    setBookings((bk as Booking[]) ?? []);
     setStreak(streakData as Streak | null);
-
-    const { data: regs } = await supabase
-      .from("event_registrations")
-      .select("registered_at, events(title)")
-      .eq("user_id", user.id)
-      .order("registered_at", { ascending: false })
-      .limit(5);
-
-    const items: Array<{ kind: string; text: string; at: string }> = [];
-    (tk ?? []).slice(0, 5).forEach((t: Task) =>
-      items.push({ kind: "Task", text: t.title, at: t.created_at }),
-    );
-    (regs ?? []).forEach((r: any) =>
-      items.push({ kind: "Event", text: `Joined ${r.events?.title ?? "an event"}`, at: r.registered_at }),
-    );
-    items.sort((a, b) => +new Date(b.at) - +new Date(a.at));
-    setActivity(items.slice(0, 8));
+    setUpcomingEvents((evUpcoming as UpcomingEvent[]) ?? []);
+    setLoading(false);
   }
 
   async function addTask(e: React.FormEvent) {
     e.preventDefault();
     if (!newTask.trim() || !user) return;
-    const { error } = await supabase.from("tasks").insert({ user_id: user.id, title: newTask.trim() });
-    if (error) toast.error(error.message);
-    else {
-      setNewTask("");
-      void loadAll();
-    }
+    const { error } = await supabase.from("tasks").insert({
+      user_id: user.id,
+      title: newTask.trim(),
+      due_date: newTaskDate || null,
+    });
+    if (error) { toast.error(error.message); return; }
+    setNewTask("");
+    setNewTaskDate("");
+    setShowDatePicker(false);
+    void loadAll();
   }
 
   async function toggleTask(t: Task) {
     await supabase.from("tasks").update({ completed: !t.completed }).eq("id", t.id);
-    void loadAll();
+    setTasks(prev => prev.map(x => x.id === t.id ? { ...x, completed: !x.completed } : x));
   }
 
   async function deleteTask(id: string) {
     await supabase.from("tasks").delete().eq("id", id);
-    void loadAll();
+    setTasks(prev => prev.filter(x => x.id !== id));
+    setStats(prev => ({ ...prev, tasks: Math.max(0, prev.tasks - 1) }));
   }
 
   const monthStart = startOfMonth(month);
   const monthEnd = endOfMonth(month);
   const days = eachDayOfInterval({ start: monthStart, end: monthEnd });
   const padStart = monthStart.getDay();
-  const taskDates = new Set(tasks.filter((t) => t.due_date).map((t) => t.due_date as string));
+  const taskDates = new Set(tasks.filter(t => t.due_date).map(t => t.due_date as string));
+
+  const openTasks = tasks.filter(t => !t.completed);
+  const doneTasks = tasks.filter(t => t.completed);
 
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-6">
-      <div className="flex items-end justify-between">
+    <div className="p-4 md:p-6 max-w-7xl mx-auto space-y-5">
+
+      {/* Header */}
+      <div className="flex items-center justify-between">
         <div>
-          <div className="text-xs uppercase tracking-wider text-muted-foreground">Dashboard</div>
-          <h1 className="font-display text-4xl mt-1">
-            {greet()}{profileName ? `, ${profileName.split(" ")[0]}` : ""}.
+          <p className="text-xs uppercase tracking-wider text-muted-foreground">{format(new Date(), "EEEE, MMMM d")}</p>
+          <h1 className="text-3xl font-bold mt-0.5">
+            {greet()}{profileName ? `, ${profileName.split(" ")[0]}` : ""} 👋
           </h1>
         </div>
         {streak && streak.current_streak > 0 && (
-          <div
+          <button
             onClick={() => navigate("/profile")}
-            className="flex items-center gap-2 px-3 py-2 rounded-xl bg-orange-500/10 border border-orange-500/20 cursor-pointer hover:bg-orange-500/20 transition-colors"
+            className="flex items-center gap-2 px-3 py-2 rounded-xl bg-orange-500/10 border border-orange-500/20 hover:bg-orange-500/20 transition-colors"
           >
             <Flame className="h-5 w-5 text-orange-400" />
-            <div>
-              <div className="text-sm font-bold text-orange-400">{streak.current_streak} day streak</div>
+            <div className="text-left">
+              <div className="text-sm font-bold text-orange-400">{streak.current_streak} day streak 🔥</div>
               <div className="text-xs text-muted-foreground">Best: {streak.longest_streak}</div>
             </div>
-          </div>
+          </button>
         )}
       </div>
 
+      {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <Stat label="Open tasks" value={stats.tasks} />
-        <Stat label="Messages sent" value={stats.messages} />
-        <Stat label="Events joined" value={stats.events} />
-        <Stat label="Connections" value={stats.connections} />
+        {[
+          { label: "Open tasks", value: stats.tasks, icon: Check, color: "text-primary bg-primary/10" },
+          { label: "Messages sent", value: stats.messages, icon: MessageSquare, color: "text-blue-400 bg-blue-400/10" },
+          { label: "Events joined", value: stats.events, icon: CalendarDays, color: "text-purple-400 bg-purple-400/10" },
+          { label: "Connections", value: stats.connections, icon: Users, color: "text-emerald-400 bg-emerald-400/10" },
+        ].map(s => (
+          <div key={s.label} className="panel p-4 flex items-center gap-3">
+            <div className={`h-9 w-9 rounded-lg ${s.color} grid place-items-center shrink-0`}>
+              <s.icon className="h-4 w-4" />
+            </div>
+            <div>
+              <div className="text-2xl font-bold">{loading ? "—" : s.value}</div>
+              <div className="text-xs text-muted-foreground">{s.label}</div>
+            </div>
+          </div>
+        ))}
       </div>
 
-      {/* Sports bookings widget */}
-      {bookings.length > 0 && (
-        <div
-          className="panel p-4 border-l-4 border-l-orange-500 cursor-pointer hover:border-orange-400 transition-colors"
-          onClick={() => navigate("/sports")}
-        >
-          <div className="flex items-center gap-2 mb-3">
-            <Dumbbell className="h-4 w-4 text-orange-500" />
-            <span className="text-sm font-semibold">Upcoming Sports Bookings</span>
-            <span className="ml-auto text-xs text-orange-500 font-medium">View all →</span>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {bookings.map((b) => (
-              <div key={b.id} className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-orange-500/10 border border-orange-500/20 text-xs">
-                <Trophy className="h-3 w-3 text-orange-400" />
-                <span className="font-medium">{b.court_name}</span>
-                <span className="text-muted-foreground">·</span>
-                <span className="text-muted-foreground">{b.slot_time}</span>
-                <span className="text-muted-foreground">·</span>
-                <span className="text-muted-foreground">{format(new Date(b.booking_date), "MMM d")}</span>
+      {/* Quick links */}
+      <div className="grid grid-cols-3 md:grid-cols-6 gap-2">
+        {QUICK_LINKS.map(q => (
+          <Link
+            key={q.to}
+            to={q.to}
+            className="panel p-3 flex flex-col items-center gap-2 hover:border-primary/40 transition-all hover:scale-105 group"
+          >
+            <div className={`h-9 w-9 rounded-xl ${q.color} grid place-items-center group-hover:scale-110 transition-transform`}>
+              <q.icon className="h-4 w-4" />
+            </div>
+            <span className="text-xs font-medium text-muted-foreground group-hover:text-foreground transition-colors">{q.label}</span>
+          </Link>
+        ))}
+      </div>
+
+      <div className="grid lg:grid-cols-3 gap-5">
+
+        {/* Tasks — left 2 cols */}
+        <div className="lg:col-span-2 space-y-4">
+          <div className="panel p-5">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-semibold">Tasks</h2>
+              <span className="text-xs text-muted-foreground">{openTasks.length} open</span>
+            </div>
+
+            {/* Add task form */}
+            <form onSubmit={addTask} className="space-y-2 mb-4">
+              <div className="flex gap-2">
+                <input
+                  value={newTask}
+                  onChange={(e) => setNewTask(e.target.value)}
+                  placeholder="Add a task…"
+                  className="flex-1 h-9 px-3 rounded-md bg-[hsl(var(--input))] border border-border text-sm outline-none focus:border-ring"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowDatePicker(v => !v)}
+                  className={`h-9 px-3 rounded-md border text-sm transition-colors ${
+                    newTaskDate ? "border-primary text-primary bg-primary/10" : "border-border text-muted-foreground hover:text-foreground"
+                  }`}
+                  title="Set due date"
+                >
+                  <CalendarDays className="h-4 w-4" />
+                </button>
+                <button
+                  type="submit"
+                  className="h-9 px-3 rounded-md bg-primary text-primary-foreground text-sm font-medium flex items-center gap-1.5 hover:opacity-90"
+                >
+                  <Plus className="h-4 w-4" />
+                </button>
               </div>
-            ))}
-          </div>
-        </div>
-      )}
+              {showDatePicker && (
+                <div className="flex items-center gap-2">
+                  <input
+                    type="date"
+                    value={newTaskDate}
+                    min={format(new Date(), "yyyy-MM-dd")}
+                    onChange={(e) => setNewTaskDate(e.target.value)}
+                    className="flex-1 h-9 px-3 rounded-md bg-[hsl(var(--input))] border border-border text-sm outline-none focus:border-ring"
+                  />
+                  {newTaskDate && (
+                    <button
+                      type="button"
+                      onClick={() => setNewTaskDate("")}
+                      className="text-xs text-muted-foreground hover:text-destructive"
+                    >
+                      Clear
+                    </button>
+                  )}
+                </div>
+              )}
+            </form>
 
-      <div className="grid lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 panel p-5">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-sm font-semibold tracking-tight">Tasks</h2>
-            <span className="text-xs text-muted-foreground">{tasks.filter((t) => !t.completed).length} open</span>
-          </div>
-          <form onSubmit={addTask} className="flex gap-2 mb-4">
-            <input
-              value={newTask}
-              onChange={(e) => setNewTask(e.target.value)}
-              placeholder="Write a task and press Enter"
-              className="flex-1 h-9 px-3 rounded-md bg-[hsl(var(--input))] border border-border text-sm outline-none focus:border-ring"
-            />
-            <button
-              type="submit"
-              className="h-9 px-3 rounded-md bg-primary text-primary-foreground text-sm font-medium inline-flex items-center gap-1.5 hover:opacity-90"
-            >
-              <Plus className="h-4 w-4" /> Add
-            </button>
-          </form>
-          <ul className="space-y-1">
-            {tasks.length === 0 && (
-              <li className="text-sm text-muted-foreground py-6 text-center">No tasks yet.</li>
+            {/* Open tasks */}
+            <ul className="space-y-1">
+              {openTasks.length === 0 && (
+                <li className="text-sm text-muted-foreground py-4 text-center">All done! Add a task above.</li>
+              )}
+              {openTasks.map((t) => (
+                <li key={t.id} className="group flex items-center gap-3 px-2 py-2 rounded-md hover:bg-[hsl(var(--surface-2))]">
+                  <button
+                    onClick={() => toggleTask(t)}
+                    className="h-5 w-5 rounded-md border border-border grid place-items-center shrink-0 hover:border-primary transition-colors"
+                  />
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm truncate">{t.title}</div>
+                    {t.due_date && (
+                      <div className={`text-xs mt-0.5 ${
+                        isPast(new Date(t.due_date)) && !isToday(new Date(t.due_date))
+                          ? "text-destructive"
+                          : isToday(new Date(t.due_date))
+                          ? "text-orange-400"
+                          : "text-muted-foreground"
+                      }`}>
+                        {isToday(new Date(t.due_date)) ? "Due today" : `Due ${format(new Date(t.due_date), "MMM d")}`}
+                      </div>
+                    )}
+                  </div>
+                  <button
+                    onClick={() => deleteTask(t.id)}
+                    className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-all"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                </li>
+              ))}
+            </ul>
+
+            {/* Completed tasks (collapsed) */}
+            {doneTasks.length > 0 && (
+              <details className="mt-3">
+                <summary className="text-xs text-muted-foreground cursor-pointer hover:text-foreground select-none">
+                  {doneTasks.length} completed
+                </summary>
+                <ul className="mt-2 space-y-1">
+                  {doneTasks.map((t) => (
+                    <li key={t.id} className="group flex items-center gap-3 px-2 py-1.5 rounded-md hover:bg-[hsl(var(--surface-2))]">
+                      <button
+                        onClick={() => toggleTask(t)}
+                        className="h-5 w-5 rounded-md bg-primary border-primary border grid place-items-center shrink-0"
+                      >
+                        <Check className="h-3.5 w-3.5 text-primary-foreground" />
+                      </button>
+                      <span className="flex-1 text-sm line-through text-muted-foreground truncate">{t.title}</span>
+                      <button
+                        onClick={() => deleteTask(t.id)}
+                        className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-all"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </details>
             )}
-            {tasks.map((t) => (
-              <li
-                key={t.id}
-                className="group flex items-center gap-3 px-2 py-2 rounded-md hover:bg-[hsl(var(--surface-2))]"
-              >
-                <button
-                  onClick={() => toggleTask(t)}
-                  className={`h-5 w-5 rounded-md border ${t.completed ? "bg-primary border-primary" : "border-border"} grid place-items-center`}
-                >
-                  {t.completed && <Check className="h-3.5 w-3.5 text-primary-foreground" />}
-                </button>
-                <span className={`flex-1 text-sm ${t.completed ? "line-through text-muted-foreground" : ""}`}>
-                  {t.title}
-                </span>
-                <button
-                  onClick={() => deleteTask(t.id)}
-                  className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </button>
-              </li>
-            ))}
-          </ul>
+          </div>
+
+          {/* Upcoming events widget */}
+          {upcomingEvents.length > 0 && (
+            <div className="panel p-5">
+              <div className="flex items-center justify-between mb-3">
+                <h2 className="font-semibold">Upcoming Events</h2>
+                <Link to="/events" className="text-xs text-primary hover:underline flex items-center gap-1">
+                  View all <ArrowRight className="h-3 w-3" />
+                </Link>
+              </div>
+              <div className="space-y-2">
+                {upcomingEvents.map(e => (
+                  <div key={e.id} className="flex items-center gap-3 p-2.5 rounded-lg bg-[hsl(var(--surface-2))]">
+                    <div className="h-10 w-10 rounded-lg bg-primary/10 text-primary grid place-items-center shrink-0 text-center">
+                      <div className="text-sm font-bold leading-none">{format(new Date(e.starts_at), "d")}</div>
+                      <div className="text-[9px] uppercase">{format(new Date(e.starts_at), "MMM")}</div>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-medium truncate">{e.title}</div>
+                      <div className="text-xs text-muted-foreground">
+                        {format(new Date(e.starts_at), "h:mm a")}
+                        {e.location && ` · ${e.location}`}
+                      </div>
+                    </div>
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-[hsl(var(--surface-3))] text-muted-foreground capitalize">
+                      {e.kind}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
-        <div className="space-y-6">
+        {/* Right column */}
+        <div className="space-y-5">
+          {/* Calendar */}
           <div className="panel p-5">
             <div className="flex items-center justify-between mb-3">
-              <h2 className="text-sm font-semibold tracking-tight">{format(month, "MMMM yyyy")}</h2>
+              <h2 className="text-sm font-semibold">{format(month, "MMMM yyyy")}</h2>
               <div className="flex items-center gap-1">
                 <button
                   onClick={() => setMonth(subMonths(month, 1))}
-                  className="h-7 w-7 grid place-items-center rounded-md hover:bg-[hsl(var(--surface-3))] text-muted-foreground"
-                >
-                  ‹
-                </button>
+                  className="h-7 w-7 grid place-items-center rounded-md hover:bg-[hsl(var(--surface-3))] text-muted-foreground text-lg"
+                >‹</button>
                 <button
                   onClick={() => setMonth(addMonths(month, 1))}
-                  className="h-7 w-7 grid place-items-center rounded-md hover:bg-[hsl(var(--surface-3))] text-muted-foreground"
-                >
-                  ›
-                </button>
+                  className="h-7 w-7 grid place-items-center rounded-md hover:bg-[hsl(var(--surface-3))] text-muted-foreground text-lg"
+                >›</button>
               </div>
             </div>
-            <div className="grid grid-cols-7 gap-1 text-[10px] uppercase tracking-wider text-muted-foreground mb-1">
+            <div className="grid grid-cols-7 gap-0.5 text-[10px] uppercase tracking-wider text-muted-foreground mb-1">
               {["S", "M", "T", "W", "T", "F", "S"].map((d, i) => (
-                <div key={i} className="text-center">{d}</div>
+                <div key={i} className="text-center py-1">{d}</div>
               ))}
             </div>
-            <div className="grid grid-cols-7 gap-1">
+            <div className="grid grid-cols-7 gap-0.5">
               {Array.from({ length: padStart }).map((_, i) => <div key={`p${i}`} />)}
               {days.map((d) => {
                 const iso = format(d, "yyyy-MM-dd");
@@ -271,51 +382,72 @@ export default function Dashboard() {
                 return (
                   <div
                     key={iso}
-                    className={`aspect-square text-xs grid place-items-center rounded-md ${
+                    className={`aspect-square text-xs grid place-items-center rounded-md relative ${
                       today
-                        ? "bg-primary text-primary-foreground"
+                        ? "bg-primary text-primary-foreground font-bold"
                         : isSameMonth(d, month)
-                        ? "text-foreground"
-                        : "text-muted-foreground"
-                    } ${hasTask && !today ? "ring-1 ring-primary/40" : ""}`}
+                        ? "text-foreground hover:bg-[hsl(var(--surface-2))]"
+                        : "text-muted-foreground/40"
+                    }`}
                   >
                     {format(d, "d")}
+                    {hasTask && !today && (
+                      <span className="absolute bottom-0.5 left-1/2 -translate-x-1/2 h-1 w-1 rounded-full bg-primary" />
+                    )}
                   </div>
                 );
               })}
             </div>
           </div>
 
+          {/* Trophy / streak card */}
           <div className="panel p-5">
-            <h2 className="text-sm font-semibold tracking-tight mb-3">Recent activity</h2>
-            <ul className="space-y-2.5">
-              {activity.length === 0 && (
-                <li className="text-sm text-muted-foreground">Nothing yet.</li>
-              )}
-              {activity.map((a, i) => (
-                <li key={i} className="flex items-start gap-3 text-sm">
-                  <span className="chip mt-0.5">{a.kind}</span>
-                  <div className="flex-1">
-                    <div className="text-foreground">{a.text}</div>
-                    <div className="text-xs text-muted-foreground">
-                      {format(new Date(a.at), "MMM d, h:mm a")}
-                    </div>
+            <div className="flex items-center gap-2 mb-3">
+              <Trophy className="h-4 w-4 text-yellow-400" />
+              <h2 className="text-sm font-semibold">Your Progress</h2>
+            </div>
+            <div className="space-y-3">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">Tasks completed</span>
+                <span className="font-semibold">{doneTasks.length}</span>
+              </div>
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">Events joined</span>
+                <span className="font-semibold">{stats.events}</span>
+              </div>
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">Connections</span>
+                <span className="font-semibold">{stats.connections}</span>
+              </div>
+              {streak && (
+                <div className="pt-2 border-t border-border/50">
+                  <div className="flex items-center gap-1.5 mb-2">
+                    <Flame className="h-3.5 w-3.5 text-orange-400" />
+                    <span className="text-xs text-muted-foreground">Daily streak</span>
                   </div>
-                </li>
-              ))}
-            </ul>
+                  <div className="flex gap-1">
+                    {Array.from({ length: 7 }).map((_, i) => (
+                      <div
+                        key={i}
+                        className={`flex-1 h-1.5 rounded-full ${
+                          i < Math.min(streak.current_streak, 7)
+                            ? "bg-orange-400"
+                            : "bg-[hsl(var(--surface-3))]"
+                        }`}
+                      />
+                    ))}
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1.5">
+                    {streak.current_streak > 0
+                      ? `${streak.current_streak} day streak 🔥`
+                      : "Start your streak today!"}
+                  </p>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>
-    </div>
-  );
-}
-
-function Stat({ label, value }: { label: string; value: number }) {
-  return (
-    <div className="panel p-4">
-      <div className="text-xs text-muted-foreground">{label}</div>
-      <div className="stat-num mt-1">{value}</div>
     </div>
   );
 }

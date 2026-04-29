@@ -33,7 +33,7 @@ export default function Network() {
   useEffect(() => {
     if (!user) return;
     (async () => {
-      const [{ data: pf }, { data: cs }, { data: conns }, { data: me }] = await Promise.all([
+      const [{ data: pf, error: pfErr }, { data: cs }, { data: conns }, { data: me }] = await Promise.all([
         supabase.from("profiles")
           .select("user_id, display_name, username, bio, skills, interests, college_id, avatar_url, profile_visibility")
           .neq("user_id", user.id)
@@ -42,6 +42,7 @@ export default function Network() {
         supabase.from("connections").select("*").or(`requester_id.eq.${user.id},recipient_id.eq.${user.id}`),
         supabase.from("profiles").select("college_id").eq("user_id", user.id).maybeSingle(),
       ]);
+      if (pfErr) toast.error("Failed to load people");
       setProfiles((pf as Profile[]) ?? []);
       const cmap: Record<string, College> = {};
       (cs ?? []).forEach((c: any) => (cmap[c.id] = c));
