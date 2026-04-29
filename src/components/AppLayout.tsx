@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import NotificationPanel from "@/components/NotificationPanel";
 import SettingsPanel from "@/components/SettingsPanel";
+import AIChat from "@/components/AIChat";
 
 type Profile = {
   display_name: string;
@@ -167,6 +168,9 @@ export default function AppLayout() {
         <main className="flex-1 min-w-0 overflow-auto pb-16 md:pb-0">
           <Outlet />
         </main>
+
+        {/* ── AI Chat (floating, available on all pages) ── */}
+        <AIChat />
 
         {/* ── Mobile bottom nav ── */}
         <nav className="md:hidden fixed bottom-0 left-0 right-0 z-30 grid grid-cols-5 border-t border-border/50 bg-[hsl(var(--sidebar-background))] mobile-nav">
