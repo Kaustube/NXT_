@@ -89,21 +89,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let done = false;
-    let refreshInterval: ReturnType<typeof setInterval> | null = null;
 
     // Hard timeout — never stay loading more than 3 seconds
     const timeout = setTimeout(() => {
-      if (!done) {
-        done = true;
-        setLoading(false);
-      }
+      if (!done) { done = true; setLoading(false); }
     }, 3000);
 
-    // Auth state changes (sign in / sign out after initial load)
+    // onAuthStateChange handles ALL session events including token refresh.
+    // Supabase's autoRefreshToken:true already refreshes tokens automatically —
+    // we must NOT call refreshSession() manually or it races and causes
+    // "lock:sb-auth-token was released because another request stole it".
     const { data: sub } = supabase.auth.onAuthStateChange(async (event, s) => {
-      console.log('🔐 Auth event:', event);
-      
-      // Handle different auth events
       if (event === 'SIGNED_OUT') {
         setSession(null);
         setUser(null);
@@ -112,18 +108,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setIsProfessor(false);
         setIsServerAdmin(false);
         setEmailVerified(false);
-        if (refreshInterval) clearInterval(refreshInterval);
         return;
-      }
-
-      if (event === 'TOKEN_REFRESHED') {
-        console.log('✅ Token refreshed successfully');
       }
 
       if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION') {
         setSession(s);
         setUser(s?.user ?? null);
-        
         if (s?.user) {
           const roleData = await checkUserRoles(s.user.id);
           setRoles(roleData.roles);
@@ -139,7 +129,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     supabase.auth.getSession().then(async ({ data: { session: s } }) => {
       setSession(s);
       setUser(s?.user ?? null);
-      
       if (s?.user) {
         const roleData = await checkUserRoles(s.user.id);
         setRoles(roleData.roles);
@@ -147,40 +136,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setIsProfessor(roleData.isProfessor);
         setIsServerAdmin(roleData.isServerAdmin);
         setEmailVerified(roleData.emailVerified);
-
-        // Set up periodic session refresh (every 4 minutes)
-        // JWT tokens typically expire after 1 hour, but we refresh proactively
-        refreshInterval = setInterval(async () => {
-          console.log('🔄 Proactive session refresh...');
-          const { data, error } = await supabase.auth.refreshSession();
-          if (error) {
-            console.error('❌ Session refresh failed:', error);
-          } else if (data.session) {
-            console.log('✅ Session refreshed proactively');
-            setSession(data.session);
-            setUser(data.session.user);
-          }
-        }, 4 * 60 * 1000); // 4 minutes
       }
-      
-      if (!done) {
-        done = true;
-        clearTimeout(timeout);
-        setLoading(false);
-      }
-    }).catch((error) => {
-      console.error('❌ Session check failed:', error);
-      // Supabase unreachable — still unblock the app
-      if (!done) {
-        done = true;
-        clearTimeout(timeout);
-        setLoading(false);
-      }
+      if (!done) { done = true; clearTimeout(timeout); setLoading(false); }
+    }).catch(() => {
+      if (!done) { done = true; clearTimeout(timeout); setLoading(false); }
     });
 
     return () => {
       clearTimeout(timeout);
-      if (refreshInterval) clearInterval(refreshInterval);
       sub.subscription.unsubscribe();
     };
   }, []);

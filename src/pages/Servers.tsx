@@ -143,10 +143,18 @@ export default function Servers() {
       }
     }
 
-    const { error } = await supabase.from("server_members").insert({ server_id: activeServer.id, user_id: user.id });
-    if (error) toast.error(error.message);
-    else {
-      setMemberships(new Set([...memberships, activeServer.id]));
+    // Optimistically update memberships to prevent double-click
+    setMemberships(prev => new Set([...prev, activeServer.id]));
+
+    const { error } = await supabase.from("server_members").upsert(
+      { server_id: activeServer.id, user_id: user.id },
+      { onConflict: "server_id,user_id", ignoreDuplicates: true }
+    );
+    if (error) {
+      // Roll back optimistic update
+      setMemberships(prev => { const next = new Set(prev); next.delete(activeServer.id); return next; });
+      toast.error(error.message);
+    } else {
       toast.success(`Joined ${activeServer.name}`);
     }
   }

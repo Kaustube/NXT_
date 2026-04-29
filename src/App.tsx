@@ -38,6 +38,7 @@ import NotFound from "./pages/NotFound";
 import AdminOverview from "./pages/admin/Overview";
 import AdminUsers from "./pages/admin/AdminUsers";
 import AdminServers from "./pages/admin/AdminServers";
+import AdminColleges from "./pages/admin/AdminColleges";
 import AdminChallenges from "./pages/admin/AdminChallenges";
 import AdminSports from "./pages/admin/AdminSports";
 import AdminLMS from "./pages/admin/AdminLMS";
@@ -92,6 +93,7 @@ const App = () => (
                 <Route element={<AdminLayout />}>
                   <Route path="/admin" element={<AdminOverview />} />
                   <Route path="/admin/users" element={<AdminUsers />} />
+                  <Route path="/admin/colleges" element={<AdminColleges />} />
                   <Route path="/admin/servers" element={<AdminServers />} />
                   <Route path="/admin/challenges" element={<AdminChallenges />} />
                   <Route path="/admin/sports" element={<AdminSports />} />
