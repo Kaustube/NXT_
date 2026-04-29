@@ -4,6 +4,7 @@ import {
   Trophy, Code, BookOpen, Rocket, Globe, Heart, Instagram
 } from "lucide-react";
 import { useState, useEffect } from "react";
+import Logo from "@/components/Logo";
 
 export default function Landing() {
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
@@ -237,10 +238,9 @@ export default function Landing() {
         <div className="max-w-6xl mx-auto">
           <div className="flex flex-col md:flex-row items-center justify-between gap-6">
             <div className="flex items-center gap-2">
-              <div className="h-8 w-8 rounded-lg bg-primary text-primary-foreground grid place-items-center font-bold">
-                N
-              </div>
-              <span className="font-semibold">NXT Campus</span>
+              <Logo size="sm" showText />
+            </div>
+            <span className="font-semibold">NXT Campus</span>
             </div>
             
             <div className="flex items-center gap-6 text-sm text-muted-foreground">

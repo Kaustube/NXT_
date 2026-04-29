@@ -6,14 +6,74 @@
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <meta name="apple-mobile-web-app-title" content="NXT" />
+    <meta name="apple-mobile-web-app-title" content="NXT Campus" />
     <meta name="theme-color" content="#0a0a0f" />
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
     <meta http-equiv="Pragma" content="no-cache" />
     <meta http-equiv="Expires" content="0" />
-    <title>NXT — Student Super App</title>
-    <meta name="description" content="NXT is a single home for college life — servers, chats, tasks, marketplace, events and more.">
-    <meta name="author" content="NXT" />
+    <title>NXT Campus — College Super App</title>
+    <meta name="description" content="NXT Campus is the all-in-one platform for college students — chat, learn, connect, book facilities, and build your future.">
+    <meta name="author" content="NXT Campus" />
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" />
+
+    <!-- Favicon & PWA icons -->
+    <link rel="icon" type="image/png" href="/logo.png" />
+    <link rel="apple-touch-icon" href="/logo.png" />
+
+    <!-- Open Graph -->
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="NXT Campus — College Super App" />
+    <meta property="og:description" content="The all-in-one platform for college students." />
+    <meta property="og:image" content="/logo.png" />
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content="NXT Campus — College Super App" />
+    <meta name="twitter:description" content="The all-in-one platform for college students." />
+    <meta name="twitter:image" content="/logo.png" />
+  </head>
+  <body>
+    <div id="root">
+      <div id="initial-loader" style="
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #0a0a0f;
+        flex-direction: column;
+        gap: 20px;
+        font-family: 'Outfit', system-ui, sans-serif;
+      ">
+        <img src="/logo.png" alt="NXT Campus" style="width: 80px; height: 80px; border-radius: 20px;" />
+        <div style="
+          height: 32px; width: 32px;
+          border-radius: 50%;
+          border: 2px solid hsl(180, 100%, 50%);
+          border-top-color: transparent;
+          animation: spin 0.7s linear infinite;
+        "></div>
+        <div style="color: hsl(220, 5%, 65%); font-size: 14px;">Loading NXT Campus…</div>
+      </div>
+      <style>
+        @keyframes spin { to { transform: rotate(360deg); } }
+      </style>
+    </div>
+    <script>
+      document.addEventListener('DOMContentLoaded', function() {
+        const observer = new MutationObserver(function() {
+          const loader = document.getElementById('initial-loader');
+          if (loader && document.getElementById('root').children.length > 1) {
+            loader.remove();
+            observer.disconnect();
+          }
+        });
+        observer.observe(document.getElementById('root'), { childList: true });
+      });
+    </script>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
 
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />

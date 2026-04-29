@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Mail, ArrowLeft, KeyRound, Eye, EyeOff, ShieldCheck, RefreshCw } from "lucide-react";
 import CacheClearer from "@/components/CacheClearer";
+import Logo from "@/components/Logo";
 
 // forgot flow steps
 type ForgotStep = "email" | "code" | "newpass" | "done";
@@ -212,9 +213,9 @@ export default function Auth() {
       {/* Left brand panel */}
       <div className="relative hidden lg:flex flex-col justify-between p-10 border-r border-border bg-[hsl(var(--surface-1))]">
         <div className="flex items-center gap-2">
-          <div className="h-7 w-7 rounded-md bg-primary text-primary-foreground grid place-items-center font-semibold">N</div>
-          <span className="text-sm tracking-wide">NXT</span>
-        </div>
+            <div className="h-7 w-7 rounded-md bg-primary text-primary-foreground grid place-items-center font-semibold">N</div>
+            <span className="text-sm tracking-wide">NXT</span>
+          </div>
         <div className="space-y-6 max-w-md">
           <h1 className="font-display text-5xl leading-tight text-foreground">
             One quiet home for college life.

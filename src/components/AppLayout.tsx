@@ -12,6 +12,7 @@ import {
 import NotificationPanel from "@/components/NotificationPanel";
 import SettingsPanel from "@/components/SettingsPanel";
 import AIChat from "@/components/AIChat";
+import Logo from "@/components/Logo";
 
 type Profile = {
   display_name: string;
@@ -71,10 +72,7 @@ export default function AppLayout() {
       {/* ── Desktop Sidebar ── */}
       <aside className="w-56 shrink-0 hidden md:flex flex-col border-r border-border/50 bg-[hsl(var(--sidebar-background))]">
         <div className="h-14 flex items-center px-4 border-b border-border/50">
-          <div className="flex items-center gap-2.5">
-            <div className="h-7 w-7 rounded-lg bg-primary text-primary-foreground grid place-items-center font-bold text-sm shadow-md shadow-primary/30">N</div>
-            <span className="text-sm font-bold tracking-tight">NXT Campus</span>
-          </div>
+          <Logo size="sm" showText />
         </div>
 
         <nav className="flex-1 p-2 space-y-0.5 overflow-y-auto">
@@ -148,10 +146,7 @@ export default function AppLayout() {
             >
               <Menu className="h-5 w-5" />
             </button>
-            <div className="flex items-center gap-2">
-              <div className="h-7 w-7 rounded-lg bg-primary text-primary-foreground grid place-items-center font-bold text-sm">N</div>
-              <span className="text-sm font-bold">NXT</span>
-            </div>
+            <Logo size="sm" showText />
           </div>
 
           <div className="flex items-center gap-1 ml-auto">
@@ -207,10 +202,7 @@ export default function AppLayout() {
           <div className="md:hidden fixed inset-y-0 left-0 z-50 w-72 flex flex-col bg-[hsl(var(--sidebar-background))] border-r border-border/50 animate-in slide-in-from-left duration-200">
             {/* Header */}
             <div className="h-14 flex items-center justify-between px-4 border-b border-border/50">
-              <div className="flex items-center gap-2.5">
-                <div className="h-7 w-7 rounded-lg bg-primary text-primary-foreground grid place-items-center font-bold text-sm">N</div>
-                <span className="text-sm font-bold">NXT Campus</span>
-              </div>
+              <Logo size="sm" showText />
               <button onClick={() => setMobileDrawerOpen(false)}
                 className="h-9 w-9 grid place-items-center rounded-md text-muted-foreground hover:text-foreground hover:bg-[hsl(var(--surface-2))]">
                 <X className="h-5 w-5" />
