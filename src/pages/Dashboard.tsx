@@ -4,7 +4,7 @@ import { useAuth } from "@/context/AuthContext";
 import {
   Plus, Check, Trash2, Flame, CalendarDays,
   Users, MessageSquare, Trophy, ArrowRight,
-  Server, Gamepad2, BookOpen, ShoppingBag,
+  Server, Gamepad2, BookOpen, ShoppingBag, Building2,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -31,12 +31,12 @@ type UpcomingEvent = {
 type Streak = { current_streak: number; longest_streak: number };
 
 const QUICK_LINKS = [
-  { to: "/servers", label: "Servers", icon: Server, color: "text-blue-400 bg-blue-400/10" },
-  { to: "/events", label: "Events", icon: CalendarDays, color: "text-purple-400 bg-purple-400/10" },
-  { to: "/lms", label: "LMS", icon: BookOpen, color: "text-green-400 bg-green-400/10" },
-  { to: "/games", label: "Games", icon: Gamepad2, color: "text-orange-400 bg-orange-400/10" },
-  { to: "/network", label: "Network", icon: Users, color: "text-cyan-400 bg-cyan-400/10" },
-  { to: "/marketplace", label: "Market", icon: ShoppingBag, color: "text-pink-400 bg-pink-400/10" },
+  { to: "/servers",          label: "Servers",   icon: Server,    color: "text-blue-400 bg-blue-400/10" },
+  { to: "/events",           label: "Events",    icon: CalendarDays, color: "text-purple-400 bg-purple-400/10" },
+  { to: "/lms",              label: "LMS",       icon: BookOpen,  color: "text-green-400 bg-green-400/10" },
+  { to: "/campus-services",  label: "Services",  icon: Building2, color: "text-yellow-400 bg-yellow-400/10" },
+  { to: "/network",          label: "Network",   icon: Users,     color: "text-cyan-400 bg-cyan-400/10" },
+  { to: "/marketplace",      label: "Market",    icon: ShoppingBag, color: "text-pink-400 bg-pink-400/10" },
 ];
 
 export default function Dashboard() {

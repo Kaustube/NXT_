@@ -7,7 +7,7 @@ import {
   CalendarDays, Gamepad2, BookOpen, LogOut, Sun, Moon,
   Trophy, Briefcase, Target, ShieldCheck, Server,
   HelpCircle, ChevronDown, ChevronRight, UserRound,
-  Menu, X, Languages,
+  Menu, X, Languages, Building2,
 } from "lucide-react";
 import NotificationPanel from "@/components/NotificationPanel";
 import SettingsPanel from "@/components/SettingsPanel";
@@ -28,14 +28,15 @@ const PRIMARY_NAV = [
 ];
 
 const SECONDARY_NAV = [
-  { to: "/lms",          label: "LMS",          icon: BookOpen },
-  { to: "/sports",       label: "Sports",        icon: Trophy },
-  { to: "/marketplace",  label: "Marketplace",   icon: ShoppingBag },
-  { to: "/opportunities",label: "Opportunities", icon: Briefcase },
-  { to: "/placement",    label: "Placement",     icon: Target },
-  { to: "/games",        label: "Games",         icon: Gamepad2 },
-  { to: "/languages",    label: "Languages",     icon: Languages },
-  { to: "/help",         label: "Help",          icon: HelpCircle },
+  { to: "/lms",              label: "LMS",             icon: BookOpen },
+  { to: "/sports",           label: "Sports",           icon: Trophy },
+  { to: "/campus-services",  label: "Campus Services",  icon: Building2 },
+  { to: "/marketplace",      label: "Marketplace",      icon: ShoppingBag },
+  { to: "/opportunities",    label: "Opportunities",    icon: Briefcase },
+  { to: "/placement",        label: "Placement",        icon: Target },
+  { to: "/games",            label: "Games",            icon: Gamepad2 },
+  { to: "/languages",        label: "Languages",        icon: Languages },
+  { to: "/help",             label: "Help",             icon: HelpCircle },
 ];
 
 // Mobile bottom nav — 5 slots: 4 primary + "More" drawer trigger

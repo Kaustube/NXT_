@@ -33,6 +33,7 @@ import Opportunities from "./pages/Opportunities";
 import PlacementDashboard from "./pages/PlacementDashboard";
 import Languages from "./pages/Languages";
 import Help from "./pages/Help";
+import CampusServices from "./pages/CampusServices";
 import { EmailVerificationPage } from "@/components/EmailVerification";
 import NotFound from "./pages/NotFound";
 import AdminOverview from "./pages/admin/Overview";
@@ -85,6 +86,7 @@ const App = () => (
                   <Route path="/placement" element={<PlacementDashboard />} />
                   <Route path="/languages" element={<Languages />} />
                   <Route path="/help" element={<Help />} />
+                  <Route path="/campus-services" element={<CampusServices />} />
                 </Route>
               </Route>
 
