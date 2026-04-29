@@ -51,7 +51,7 @@ type Stats = {
 };
 
 export default function ProfilePage() {
-  const { user } = useAuth();
+  const { user, profile: ctxProfile, refreshProfile } = useAuth();
   const [p, setP] = useState<Profile | null>(null);
   const [collegeName, setCollegeName] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
@@ -67,6 +67,20 @@ export default function ProfilePage() {
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [profileVisibility, setProfileVisibility] = useState<"public" | "private">("public");
   const fileRef = useRef<HTMLInputElement>(null);
+
+  // Seed local state from context profile immediately (no flash)
+  useEffect(() => {
+    if (ctxProfile && !p) {
+      setP(ctxProfile as any);
+      setBio(ctxProfile.bio ?? "");
+      setDisplayName(ctxProfile.display_name);
+      setSkills(ctxProfile.skills ?? []);
+      setInterests(ctxProfile.interests ?? []);
+      setAvatarUrl(ctxProfile.avatar_url);
+      setProfileVisibility(ctxProfile.profile_visibility ?? "public");
+      setCollegeName(ctxProfile.college_name);
+    }
+  }, [ctxProfile]);
 
   useEffect(() => {
     if (!user) return;
@@ -167,6 +181,7 @@ export default function ProfilePage() {
       toast.success("Profile updated");
       setEditing(false);
       setP((prev) => prev ? { ...prev, bio, skills, interests, display_name: displayName } : prev);
+      void refreshProfile(); // update context so sidebar updates immediately
     }
   }
 

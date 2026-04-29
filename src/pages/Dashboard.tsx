@@ -12,7 +12,6 @@ import {
   isSameDay, isSameMonth, addMonths, subMonths, isPast, isToday,
 } from "date-fns";
 import { useNavigate, Link } from "react-router-dom";
-
 type Task = {
   id: string;
   title: string;
@@ -41,7 +40,7 @@ const QUICK_LINKS = [
 ];
 
 export default function Dashboard() {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const navigate = useNavigate();
 
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -51,7 +50,6 @@ export default function Dashboard() {
   const [stats, setStats] = useState({ tasks: 0, messages: 0, events: 0, connections: 0 });
   const [upcomingEvents, setUpcomingEvents] = useState<UpcomingEvent[]>([]);
   const [month, setMonth] = useState(new Date());
-  const [profileName, setProfileName] = useState("");
   const [streak, setStreak] = useState<Streak | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -69,7 +67,6 @@ export default function Dashboard() {
       msgResult,
       evResult,
       connResult,
-      { data: prof },
       { data: streakData },
       { data: evUpcoming },
     ] = await Promise.all([
@@ -79,7 +76,6 @@ export default function Dashboard() {
       supabase.from("connections").select("*", { count: "exact", head: true })
         .or(`requester_id.eq.${user.id},recipient_id.eq.${user.id}`)
         .eq("status", "accepted"),
-      supabase.from("profiles").select("display_name").eq("user_id", user.id).maybeSingle(),
       supabase.from("user_streaks").select("current_streak, longest_streak").eq("user_id", user.id).maybeSingle(),
       supabase.from("events").select("id, title, kind, starts_at, location")
         .gte("starts_at", new Date().toISOString())
@@ -94,7 +90,6 @@ export default function Dashboard() {
       events: evResult.count ?? 0,
       connections: connResult.count ?? 0,
     });
-    setProfileName(prof?.display_name ?? "");
     setStreak(streakData as Streak | null);
     setUpcomingEvents((evUpcoming as UpcomingEvent[]) ?? []);
     setLoading(false);
@@ -143,7 +138,7 @@ export default function Dashboard() {
         <div>
           <p className="text-xs uppercase tracking-wider text-muted-foreground">{format(new Date(), "EEEE, MMMM d")}</p>
           <h1 className="text-3xl font-bold mt-0.5">
-            {greet()}{profileName ? `, ${profileName.split(" ")[0]}` : ""} 👋
+            {greet()}{profile?.display_name ? `, ${profile.display_name.split(" ")[0]}` : ""} 👋
           </h1>
         </div>
         {streak && streak.current_streak > 0 && (

@@ -2,7 +2,6 @@ import { NavLink, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { useTheme } from "@/context/ThemeContext";
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import {
   LayoutDashboard, MessagesSquare, Users, ShoppingBag,
   CalendarDays, Gamepad2, BookOpen, LogOut, Sun, Moon,
@@ -43,35 +42,14 @@ const SECONDARY_NAV = [
 const MOBILE_NAV = PRIMARY_NAV.slice(0, 4);
 
 export default function AppLayout() {
-  const { user, signOut, isAdmin } = useAuth();
+  const { user, signOut, isAdmin, profile } = useAuth();
   const { theme, toggle } = useTheme();
   const location = useLocation();
-  const [profile, setProfile] = useState<Profile | null>(null);
-  const [collegeName, setCollegeName] = useState<string | null>(null);
   const [exploreOpen, setExploreOpen] = useState(false);
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
 
   // Close mobile drawer on route change
   useEffect(() => { setMobileDrawerOpen(false); }, [location.pathname]);
-
-  useEffect(() => {
-    if (!user) return;
-    (async () => {
-      const { data } = await supabase
-        .from("profiles")
-        .select("display_name, username, avatar_url, college_id")
-        .eq("user_id", user.id)
-        .maybeSingle();
-      if (data) {
-        setProfile(data);
-        if (data.college_id) {
-          const { data: c } = await supabase
-            .from("colleges").select("short_code").eq("id", data.college_id).maybeSingle();
-          setCollegeName(c?.short_code ?? null);
-        }
-      }
-    })();
-  }, [user]);
 
   const initials = profile?.display_name
     ? profile.display_name.split(" ").map(w => w[0]).slice(0, 2).join("").toUpperCase()
@@ -143,7 +121,7 @@ export default function AppLayout() {
             <Avatar />
             <div className="min-w-0 flex-1">
               <div className="text-xs font-medium truncate leading-tight">{profile?.display_name ?? "—"}</div>
-              <div className="text-[10px] text-muted-foreground truncate">{collegeName ?? `@${profile?.username ?? "user"}`}</div>
+              <div className="text-[10px] text-muted-foreground truncate">{profile?.college_short_code ?? `@${profile?.username ?? "user"}`}</div>
             </div>
             <UserRound className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
           </NavLink>
@@ -275,7 +253,7 @@ export default function AppLayout() {
                 <Avatar />
                 <div className="min-w-0 flex-1">
                   <div className="text-sm font-medium truncate">{profile?.display_name ?? "—"}</div>
-                  <div className="text-xs text-muted-foreground truncate">{collegeName ?? `@${profile?.username ?? "user"}`}</div>
+                  <div className="text-xs text-muted-foreground truncate">{profile?.college_short_code ?? `@${profile?.username ?? "user"}`}</div>
                 </div>
               </NavLink>
               <button onClick={() => signOut()}
