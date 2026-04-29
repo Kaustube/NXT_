@@ -2,9 +2,30 @@ import { createContext, useContext, useEffect, useState, ReactNode } from "react
 import { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 
-type UserRole = 'admin' | 'professor' | 'server_admin' | 'server_mod' | 'member';
+// ── Role types ────────────────────────────────────────────────────────────────
 
-// Profile is loaded once here and shared everywhere via context
+export type UserRole =
+  | 'admin'
+  | 'professor'
+  | 'company'        // third-party company account
+  | 'college_admin'  // college-scoped admin
+  | 'server_admin'
+  | 'server_mod'
+  | 'member';
+
+export type AdminLevel =
+  | 'super_admin'
+  | 'college_admin'
+  | 'events_admin'
+  | 'sports_admin'
+  | 'marketplace_admin'
+  | 'lms_admin'
+  | 'services_admin'
+  | 'notifications_admin'
+  | 'moderator';
+
+// ── Profile type (loaded once, shared everywhere) ─────────────────────────────
+
 export type UserProfile = {
   user_id: string;
   display_name: string;
@@ -20,7 +41,12 @@ export type UserProfile = {
   interests: string[];
   profile_visibility: "public" | "private";
   public_key: string | null;
+  account_type: 'student' | 'professor' | 'company' | 'admin';
+  company_name: string | null;
+  company_approved: boolean;
 };
+
+// ── Context type ──────────────────────────────────────────────────────────────
 
 type AuthContextType = {
   user: User | null;
@@ -28,15 +54,25 @@ type AuthContextType = {
   profile: UserProfile | null;
   loading: boolean;
   isAdmin: boolean;
+  isSuperAdmin: boolean;
   isProfessor: boolean;
-  isServerAdmin: boolean;
+  isCompany: boolean;
+  isCollegeAdmin: boolean;
+  adminLevel: AdminLevel | null;
   roles: UserRole[];
   emailVerified: boolean;
   signIn: (email: string, password: string) => Promise<{ error: string | null }>;
   signUp: (
     email: string,
     password: string,
-    meta: { display_name: string; username: string; roll_number?: string; college_id?: string },
+    meta: {
+      display_name: string;
+      username: string;
+      roll_number?: string;
+      college_id?: string;
+      account_type?: 'student' | 'professor' | 'company';
+      company_name?: string;
+    },
   ) => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
   refreshRoles: () => Promise<void>;
@@ -44,6 +80,8 @@ type AuthContextType = {
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+// ── Profile loader ────────────────────────────────────────────────────────────
 
 async function loadProfile(uid: string): Promise<UserProfile | null> {
   try {
@@ -81,42 +119,71 @@ async function loadProfile(uid: string): Promise<UserProfile | null> {
       interests: p.interests ?? [],
       profile_visibility: p.profile_visibility ?? "public",
       public_key: p.public_key ?? null,
+      account_type: p.account_type ?? 'student',
+      company_name: p.company_name ?? null,
+      company_approved: p.company_approved ?? false,
     };
   } catch {
     return null;
   }
 }
 
+// ── Role checker ──────────────────────────────────────────────────────────────
+
 async function checkUserRoles(uid: string): Promise<{
   roles: UserRole[];
   isAdmin: boolean;
+  isSuperAdmin: boolean;
   isProfessor: boolean;
-  isServerAdmin: boolean;
+  isCompany: boolean;
+  isCollegeAdmin: boolean;
+  adminLevel: AdminLevel | null;
   emailVerified: boolean;
 }> {
   try {
     const { data: rolesData } = await supabase
       .from("user_roles")
-      .select("role")
-      .eq("user_id", uid)
-      .or("scope_type.is.null,scope_type.eq.global");
-    const roles = (rolesData || []).map(r => r.role as UserRole);
+      .select("role, admin_level, scope_type")
+      .eq("user_id", uid);
+
+    const rows = rolesData ?? [];
+    const roles = rows.map(r => r.role as UserRole);
+
+    // Find admin level
+    const adminRow = rows.find(r => r.role === 'admin');
+    const adminLevel = (adminRow?.admin_level as AdminLevel) ?? null;
+
     const { data: profileData } = await supabase
       .from("profiles")
       .select("email_verified")
       .eq("user_id", uid)
       .maybeSingle();
+
     return {
       roles,
       isAdmin: roles.includes('admin'),
+      isSuperAdmin: adminLevel === 'super_admin',
       isProfessor: roles.includes('professor'),
-      isServerAdmin: roles.includes('server_admin'),
+      isCompany: roles.includes('company'),
+      isCollegeAdmin: adminLevel === 'college_admin' || roles.includes('college_admin'),
+      adminLevel,
       emailVerified: profileData?.email_verified || false,
     };
   } catch {
-    return { roles: ['member'], isAdmin: false, isProfessor: false, isServerAdmin: false, emailVerified: false };
+    return {
+      roles: ['member'],
+      isAdmin: false,
+      isSuperAdmin: false,
+      isProfessor: false,
+      isCompany: false,
+      isCollegeAdmin: false,
+      adminLevel: null,
+      emailVerified: false,
+    };
   }
 }
+
+// ── Provider ──────────────────────────────────────────────────────────────────
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -124,18 +191,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const [isProfessor, setIsProfessor] = useState(false);
-  const [isServerAdmin, setIsServerAdmin] = useState(false);
+  const [isCompany, setIsCompany] = useState(false);
+  const [isCollegeAdmin, setIsCollegeAdmin] = useState(false);
+  const [adminLevel, setAdminLevel] = useState<AdminLevel | null>(null);
   const [roles, setRoles] = useState<UserRole[]>(['member']);
   const [emailVerified, setEmailVerified] = useState(false);
 
-  const applyRoles = (roleData: Awaited<ReturnType<typeof checkUserRoles>>) => {
-    setRoles(roleData.roles);
-    setIsAdmin(roleData.isAdmin);
-    setIsProfessor(roleData.isProfessor);
-    setIsServerAdmin(roleData.isServerAdmin);
-    setEmailVerified(roleData.emailVerified);
-  };
+  function applyRoles(r: Awaited<ReturnType<typeof checkUserRoles>>) {
+    setRoles(r.roles);
+    setIsAdmin(r.isAdmin);
+    setIsSuperAdmin(r.isSuperAdmin);
+    setIsProfessor(r.isProfessor);
+    setIsCompany(r.isCompany);
+    setIsCollegeAdmin(r.isCollegeAdmin);
+    setAdminLevel(r.adminLevel);
+    setEmailVerified(r.emailVerified);
+  }
 
   const refreshRoles = async () => {
     if (!user) return;
@@ -144,8 +217,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const refreshProfile = async () => {
     if (!user) return;
-    const p = await loadProfile(user.id);
-    setProfile(p);
+    setProfile(await loadProfile(user.id));
   };
 
   useEffect(() => {
@@ -157,8 +229,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { data: sub } = supabase.auth.onAuthStateChange(async (event, s) => {
       if (event === 'SIGNED_OUT') {
         setSession(null); setUser(null); setProfile(null);
-        setRoles(['member']); setIsAdmin(false); setIsProfessor(false);
-        setIsServerAdmin(false); setEmailVerified(false);
+        setRoles(['member']); setIsAdmin(false); setIsSuperAdmin(false);
+        setIsProfessor(false); setIsCompany(false); setIsCollegeAdmin(false);
+        setAdminLevel(null); setEmailVerified(false);
         return;
       }
       if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION') {
@@ -212,14 +285,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signUp: AuthContextType["signUp"] = async (email, password, meta) => {
     const { error } = await supabase.auth.signUp({
       email, password,
-      options: { emailRedirectTo: `${window.location.origin}/dashboard`, data: meta },
+      options: {
+        emailRedirectTo: `${window.location.origin}/dashboard`,
+        data: meta,
+      },
     });
     return { error: error?.message ?? null };
   };
 
   const signOut = async () => {
     await supabase.auth.signOut();
-    setIsAdmin(false); setIsProfessor(false); setIsServerAdmin(false);
+    setIsAdmin(false); setIsSuperAdmin(false); setIsProfessor(false);
+    setIsCompany(false); setIsCollegeAdmin(false); setAdminLevel(null);
     setRoles(['member']); setEmailVerified(false);
     setUser(null); setSession(null); setProfile(null);
     window.location.href = '/auth';
@@ -228,209 +305,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   return (
     <AuthContext.Provider value={{
       user, session, profile, loading,
-      isAdmin, isProfessor, isServerAdmin, roles, emailVerified,
+      isAdmin, isSuperAdmin, isProfessor, isCompany, isCollegeAdmin,
+      adminLevel, roles, emailVerified,
       signIn, signUp, signOut, refreshRoles, refreshProfile,
-    }}>
-      {children}
-    </AuthContext.Provider>
-  );
-}
-
-export function useAuth() {
-  const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error("useAuth must be used within AuthProvider");
-  return ctx;
-}
-
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
-
-async function checkUserRoles(uid: string): Promise<{
-  roles: UserRole[];
-  isAdmin: boolean;
-  isProfessor: boolean;
-  isServerAdmin: boolean;
-  emailVerified: boolean;
-}> {
-  try {
-    // Fetch all roles for user
-    const { data: rolesData } = await supabase
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", uid)
-      .or("scope_type.is.null,scope_type.eq.global");
-    
-    const roles = (rolesData || []).map(r => r.role as UserRole);
-    
-    // Check email verification status
-    const { data: profileData } = await supabase
-      .from("profiles")
-      .select("email_verified")
-      .eq("user_id", uid)
-      .maybeSingle();
-    
-    return {
-      roles,
-      isAdmin: roles.includes('admin'),
-      isProfessor: roles.includes('professor'),
-      isServerAdmin: roles.includes('server_admin'),
-      emailVerified: profileData?.email_verified || false,
-    };
-  } catch {
-    return {
-      roles: ['member'],
-      isAdmin: false,
-      isProfessor: false,
-      isServerAdmin: false,
-      emailVerified: false,
-    };
-  }
-}
-
-export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [session, setSession] = useState<Session | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [isProfessor, setIsProfessor] = useState(false);
-  const [isServerAdmin, setIsServerAdmin] = useState(false);
-  const [roles, setRoles] = useState<UserRole[]>(['member']);
-  const [emailVerified, setEmailVerified] = useState(false);
-
-  const refreshRoles = async () => {
-    if (!user) return;
-    const roleData = await checkUserRoles(user.id);
-    setRoles(roleData.roles);
-    setIsAdmin(roleData.isAdmin);
-    setIsProfessor(roleData.isProfessor);
-    setIsServerAdmin(roleData.isServerAdmin);
-    setEmailVerified(roleData.emailVerified);
-  };
-
-  useEffect(() => {
-    let done = false;
-
-    // Hard timeout — never stay loading more than 3 seconds
-    const timeout = setTimeout(() => {
-      if (!done) { done = true; setLoading(false); }
-    }, 3000);
-
-    // onAuthStateChange handles ALL session events including token refresh.
-    // Supabase's autoRefreshToken:true already refreshes tokens automatically —
-    // we must NOT call refreshSession() manually or it races and causes
-    // "lock:sb-auth-token was released because another request stole it".
-    const { data: sub } = supabase.auth.onAuthStateChange(async (event, s) => {
-      if (event === 'SIGNED_OUT') {
-        setSession(null);
-        setUser(null);
-        setRoles(['member']);
-        setIsAdmin(false);
-        setIsProfessor(false);
-        setIsServerAdmin(false);
-        setEmailVerified(false);
-        return;
-      }
-
-      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION') {
-        setSession(s);
-        setUser(s?.user ?? null);
-        if (s?.user) {
-          const roleData = await checkUserRoles(s.user.id);
-          setRoles(roleData.roles);
-          setIsAdmin(roleData.isAdmin);
-          setIsProfessor(roleData.isProfessor);
-          setIsServerAdmin(roleData.isServerAdmin);
-          setEmailVerified(roleData.emailVerified);
-        }
-      }
-    });
-
-    // Initial session check
-    supabase.auth.getSession().then(async ({ data: { session: s } }) => {
-      setSession(s);
-      setUser(s?.user ?? null);
-      if (s?.user) {
-        const roleData = await checkUserRoles(s.user.id);
-        setRoles(roleData.roles);
-        setIsAdmin(roleData.isAdmin);
-        setIsProfessor(roleData.isProfessor);
-        setIsServerAdmin(roleData.isServerAdmin);
-        setEmailVerified(roleData.emailVerified);
-      }
-      if (!done) { done = true; clearTimeout(timeout); setLoading(false); }
-    }).catch(() => {
-      if (!done) { done = true; clearTimeout(timeout); setLoading(false); }
-    });
-
-    return () => {
-      clearTimeout(timeout);
-      sub.subscription.unsubscribe();
-    };
-  }, []);
-
-  const signIn: AuthContextType["signIn"] = async (email, password) => {
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) return { error: error.message };
-    
-    // Refresh roles after sign in
-    const { data: { session: s } } = await supabase.auth.getSession();
-    if (s?.user) {
-      const roleData = await checkUserRoles(s.user.id);
-      setRoles(roleData.roles);
-      setIsAdmin(roleData.isAdmin);
-      setIsProfessor(roleData.isProfessor);
-      setIsServerAdmin(roleData.isServerAdmin);
-      setEmailVerified(roleData.emailVerified);
-    }
-    
-    return { error: null };
-  };
-
-  const signUp: AuthContextType["signUp"] = async (email, password, meta) => {
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: `${window.location.origin}/`,
-        data: meta,
-      },
-    });
-    return { error: error?.message ?? null };
-  };
-
-  const signOut = async () => {
-    // Sign out from Supabase first (this invalidates the token server-side)
-    await supabase.auth.signOut();
-    
-    // Clear auth state
-    setIsAdmin(false);
-    setIsProfessor(false);
-    setIsServerAdmin(false);
-    setRoles(['member']);
-    setEmailVerified(false);
-    setUser(null);
-    setSession(null);
-    
-    // Navigate to auth — do NOT clear localStorage here.
-    // Clearing localStorage removes the Supabase session token and causes
-    // the "clear site data → re-login" loop. Supabase's signOut() already
-    // removes its own keys from localStorage cleanly.
-    window.location.href = '/auth';
-  };
-
-  return (
-    <AuthContext.Provider value={{ 
-      user, 
-      session, 
-      loading, 
-      isAdmin, 
-      isProfessor, 
-      isServerAdmin, 
-      roles, 
-      emailVerified,
-      signIn, 
-      signUp, 
-      signOut,
-      refreshRoles 
     }}>
       {children}
     </AuthContext.Provider>
