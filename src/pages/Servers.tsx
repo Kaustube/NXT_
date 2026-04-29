@@ -32,18 +32,26 @@ export default function Servers() {
   useEffect(() => {
     if (!user) return;
     (async () => {
-      const [{ data: s }, { data: m }, { data: me }] = await Promise.all([
+      const [{ data: s }, { data: m }, { data: me }, { data: conns }] = await Promise.all([
         supabase.from("servers").select("*").order("kind").order("name"),
         supabase.from("server_members").select("server_id").eq("user_id", user.id),
         supabase.from("profiles").select("college_id").eq("user_id", user.id).maybeSingle(),
+        supabase.from("connections").select("*").or(`requester_id.eq.${user.id},recipient_id.eq.${user.id}`),
       ]);
+
+      const memberSet = new Set((m ?? []).map((x: any) => x.server_id));
+      const collegeId = (me as any)?.college_id ?? null;
+
       setServers((s as Server[]) ?? []);
-      setMemberships(new Set((m ?? []).map((x: any) => x.server_id)));
-      setMyCollegeId((me as any)?.college_id ?? null);
-      if (s && s.length && !activeServer) setActiveServer(s[0] as Server);
-      // Load my connections for the member profile popup
-      const { data: conns } = await supabase.from("connections").select("*").or(`requester_id.eq.${user.id},recipient_id.eq.${user.id}`);
+      setMemberships(memberSet);
+      setMyCollegeId(collegeId);
       setMyConnections((conns as any[]) ?? []);
+
+      // Pick the first server the user is already a member of, or just the first server
+      if (s && s.length && !activeServer) {
+        const firstMember = (s as Server[]).find(sv => memberSet.has(sv.id));
+        setActiveServer(firstMember ?? (s[0] as Server));
+      }
     })();
   }, [user]);
 
