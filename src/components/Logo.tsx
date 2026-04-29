@@ -21,24 +21,36 @@ const textSizes = {
 export default function Logo({ size = "md", showText = false, className = "" }: LogoProps) {
   return (
     <div className={`flex items-center gap-2.5 ${className}`}>
-      <img
-        src="/logo.png"
-        alt="NXT Campus"
-        className={`${sizes[size]} rounded-xl object-contain`}
-        onError={(e) => {
-          // Fallback to text logo if image not found
-          const target = e.currentTarget;
-          target.style.display = "none";
-          const fallback = target.nextElementSibling as HTMLElement;
-          if (fallback) fallback.style.display = "flex";
-        }}
-      />
-      {/* Fallback text logo (hidden by default, shown if image fails) */}
-      <div
-        className={`${sizes[size]} rounded-xl bg-primary text-primary-foreground grid place-items-center font-bold shadow-md shadow-primary/30`}
-        style={{ display: "none" }}
-      >
-        N
+      {/* Try image first, fall back to styled N logo */}
+      <div className={`${sizes[size]} relative shrink-0`}>
+        <img
+          src="/logo.png"
+          alt="NXT Campus"
+          className={`${sizes[size]} rounded-xl object-contain absolute inset-0`}
+          onError={(e) => {
+            e.currentTarget.style.display = "none";
+            const fallback = e.currentTarget.nextElementSibling as HTMLElement;
+            if (fallback) fallback.style.display = "flex";
+          }}
+        />
+        {/* Styled fallback that matches the actual logo aesthetic */}
+        <div
+          className={`${sizes[size]} rounded-xl bg-black border border-white/10 items-center justify-center font-black text-white relative overflow-hidden`}
+          style={{ display: "none" }}
+        >
+          <span className="relative z-10" style={{ fontSize: size === "sm" ? "14px" : size === "md" ? "18px" : "24px" }}>N</span>
+          {/* Neon globe dot */}
+          <span
+            className="absolute rounded-full bg-cyan-400"
+            style={{
+              width: size === "sm" ? "6px" : "8px",
+              height: size === "sm" ? "6px" : "8px",
+              top: size === "sm" ? "3px" : "4px",
+              right: size === "sm" ? "3px" : "4px",
+              boxShadow: "0 0 6px #00ffff, 0 0 12px #00ffff",
+            }}
+          />
+        </div>
       </div>
       {showText && (
         <span className={`font-bold tracking-tight ${textSizes[size]}`}>

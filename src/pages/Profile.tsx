@@ -3,24 +3,37 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
 import {
-  X,
-  Camera,
-  Edit3,
-  GraduationCap,
-  Flame,
-  Trophy,
-  Users,
-  MessageSquare,
-  Plus,
-  Check,
-  Hash,
-  Briefcase,
-  Star,
-  Calendar,
-  Globe,
-  Lock,
+  X, Camera, Edit3, GraduationCap, Flame, Trophy, Users,
+  MessageSquare, Plus, Check, Hash, Briefcase, Star,
+  Calendar, Globe, Lock, Link2, ExternalLink, ChevronDown,
 } from "lucide-react";
 import { format } from "date-fns";
+
+// ── Social platforms ──────────────────────────────────────────────────────────
+
+type SocialPlatform = {
+  id: string;
+  label: string;
+  placeholder: string;
+  prefix: string;
+  color: string;
+  emoji: string;
+};
+
+const SOCIAL_PLATFORMS: SocialPlatform[] = [
+  { id: "instagram",  label: "Instagram",  placeholder: "username",           prefix: "https://instagram.com/",  color: "text-pink-400",   emoji: "📸" },
+  { id: "twitter",    label: "X (Twitter)",placeholder: "username",           prefix: "https://x.com/",          color: "text-sky-400",    emoji: "𝕏" },
+  { id: "linkedin",   label: "LinkedIn",   placeholder: "username",           prefix: "https://linkedin.com/in/",color: "text-blue-500",   emoji: "💼" },
+  { id: "github",     label: "GitHub",     placeholder: "username",           prefix: "https://github.com/",     color: "text-foreground", emoji: "🐙" },
+  { id: "discord",    label: "Discord",    placeholder: "username or tag",    prefix: "",                        color: "text-indigo-400", emoji: "🎮" },
+  { id: "spotify",    label: "Spotify",    placeholder: "profile URL or name",prefix: "https://open.spotify.com/user/", color: "text-green-400", emoji: "🎵" },
+  { id: "youtube",    label: "YouTube",    placeholder: "@handle",            prefix: "https://youtube.com/@",   color: "text-red-400",    emoji: "▶️" },
+  { id: "steam",      label: "Steam",      placeholder: "profile URL or ID",  prefix: "https://steamcommunity.com/id/", color: "text-cyan-400", emoji: "🎮" },
+  { id: "leetcode",   label: "LeetCode",   placeholder: "username",           prefix: "https://leetcode.com/",   color: "text-orange-400", emoji: "💻" },
+  { id: "website",    label: "Website",    placeholder: "https://yoursite.com",prefix: "",                       color: "text-primary",    emoji: "🌐" },
+];
+
+type SocialLink = { platform: string; username: string; url: string };
 
 type Profile = {
   user_id: string;
@@ -66,6 +79,10 @@ export default function ProfilePage() {
   const [avatarUploading, setAvatarUploading] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [profileVisibility, setProfileVisibility] = useState<"public" | "private">("public");
+  const [socialLinks, setSocialLinks] = useState<SocialLink[]>([]);
+  const [showSocialPicker, setShowSocialPicker] = useState(false);
+  const [selectedPlatform, setSelectedPlatform] = useState<SocialPlatform | null>(null);
+  const [socialInput, setSocialInput] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
 
   // Seed local state from context profile immediately (no flash)
@@ -78,6 +95,7 @@ export default function ProfilePage() {
       setInterests(ctxProfile.interests ?? []);
       setAvatarUrl(ctxProfile.avatar_url);
       setProfileVisibility(ctxProfile.profile_visibility ?? "public");
+      setSocialLinks((ctxProfile as any).social_links ?? []);
       setCollegeName(ctxProfile.college_name);
     }
   }, [ctxProfile]);
@@ -174,15 +192,38 @@ export default function ProfilePage() {
     if (!user) return;
     const { error } = await supabase
       .from("profiles")
-      .update({ bio, skills, interests, display_name: displayName, profile_visibility: profileVisibility })
+      .update({ bio, skills, interests, display_name: displayName, profile_visibility: profileVisibility, social_links: socialLinks })
       .eq("user_id", user.id);
     if (error) toast.error(error.message);
     else {
       toast.success("Profile updated");
       setEditing(false);
       setP((prev) => prev ? { ...prev, bio, skills, interests, display_name: displayName } : prev);
-      void refreshProfile(); // update context so sidebar updates immediately
+      void refreshProfile();
     }
+  }
+
+  function addSocialLink() {
+    if (!selectedPlatform || !socialInput.trim()) return;
+    const username = socialInput.trim();
+    const url = selectedPlatform.prefix
+      ? selectedPlatform.prefix + username.replace(/^@/, "")
+      : username;
+    const existing = socialLinks.findIndex(l => l.platform === selectedPlatform.id);
+    if (existing >= 0) {
+      const updated = [...socialLinks];
+      updated[existing] = { platform: selectedPlatform.id, username, url };
+      setSocialLinks(updated);
+    } else {
+      setSocialLinks([...socialLinks, { platform: selectedPlatform.id, username, url }]);
+    }
+    setSelectedPlatform(null);
+    setSocialInput("");
+    setShowSocialPicker(false);
+  }
+
+  function removeSocialLink(platform: string) {
+    setSocialLinks(socialLinks.filter(l => l.platform !== platform));
   }
 
   async function uploadAvatar(file: File) {
@@ -487,6 +528,115 @@ export default function ProfilePage() {
             </div>
           )}
         </div>
+      </div>
+
+      {/* Social Links */}
+      <div className="panel p-5">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <Link2 className="h-4 w-4 text-primary" />
+            <h2 className="font-semibold text-sm">Social Links</h2>
+          </div>
+          {editing && (
+            <button
+              onClick={() => setShowSocialPicker(v => !v)}
+              className="h-8 px-3 rounded-lg bg-primary/10 text-primary text-xs font-semibold flex items-center gap-1.5 hover:bg-primary/20 transition-colors"
+            >
+              <Plus className="h-3.5 w-3.5" /> Add
+            </button>
+          )}
+        </div>
+
+        {/* Platform picker */}
+        {editing && showSocialPicker && (
+          <div className="mb-4 p-3 rounded-xl bg-[hsl(var(--surface-2))] space-y-3">
+            {!selectedPlatform ? (
+              <div>
+                <p className="text-xs text-muted-foreground mb-2">Select a platform</p>
+                <div className="grid grid-cols-2 gap-1.5">
+                  {SOCIAL_PLATFORMS.map(p => (
+                    <button
+                      key={p.id}
+                      onClick={() => { setSelectedPlatform(p); setSocialInput(""); }}
+                      className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-[hsl(var(--surface-3))] text-sm transition-colors text-left"
+                    >
+                      <span>{p.emoji}</span>
+                      <span className={`font-medium ${p.color}`}>{p.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <span>{selectedPlatform.emoji}</span>
+                  <span className={`text-sm font-semibold ${selectedPlatform.color}`}>{selectedPlatform.label}</span>
+                  <button onClick={() => setSelectedPlatform(null)} className="ml-auto text-muted-foreground hover:text-foreground">
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+                <div className="flex gap-2">
+                  <input
+                    value={socialInput}
+                    onChange={e => setSocialInput(e.target.value)}
+                    onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); addSocialLink(); } }}
+                    placeholder={selectedPlatform.placeholder}
+                    className="flex-1 h-9 px-3 rounded-lg bg-[hsl(var(--input))] border border-border text-sm outline-none focus:border-ring"
+                    autoFocus
+                  />
+                  <button
+                    onClick={addSocialLink}
+                    disabled={!socialInput.trim()}
+                    className="h-9 px-3 rounded-lg bg-primary text-primary-foreground text-sm font-semibold disabled:opacity-40"
+                  >
+                    Add
+                  </button>
+                </div>
+                {selectedPlatform.prefix && (
+                  <p className="text-xs text-muted-foreground">
+                    Will link to: {selectedPlatform.prefix}<span className="text-foreground">{socialInput || selectedPlatform.placeholder}</span>
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Existing links */}
+        {socialLinks.length === 0 ? (
+          <p className="text-sm text-muted-foreground">
+            {editing ? "Add your social media handles above." : "No social links added yet."}
+          </p>
+        ) : (
+          <div className="flex flex-wrap gap-2">
+            {socialLinks.map(link => {
+              const platform = SOCIAL_PLATFORMS.find(p => p.id === link.platform);
+              if (!platform) return null;
+              return (
+                <div key={link.platform} className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-border bg-[hsl(var(--surface-2))] group">
+                  <span className="text-sm">{platform.emoji}</span>
+                  <a
+                    href={link.url.startsWith("http") ? link.url : `https://${link.url}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={`text-xs font-medium ${platform.color} hover:underline flex items-center gap-1`}
+                  >
+                    {link.username}
+                    <ExternalLink className="h-2.5 w-2.5 opacity-60" />
+                  </a>
+                  {editing && (
+                    <button
+                      onClick={() => removeSocialLink(link.platform)}
+                      className="text-muted-foreground hover:text-destructive ml-0.5 opacity-0 group-hover:opacity-100 transition-all"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* Account info */}
