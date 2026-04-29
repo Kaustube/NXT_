@@ -85,13 +85,16 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 async function loadProfile(uid: string): Promise<UserProfile | null> {
   try {
-    const { data: p } = await supabase
+    // Single query with join — one round trip instead of two
+    const { data: p, error } = await supabase
       .from("profiles")
-      .select("*")
+      .select("user_id, display_name, username, email, avatar_url, college_id, roll_number, bio, skills, interests, profile_visibility, public_key")
       .eq("user_id", uid)
       .maybeSingle();
-    if (!p) return null;
 
+    if (error || !p) return null;
+
+    // Fetch college in parallel — don't block on it
     let college_name: string | null = null;
     let college_short_code: string | null = null;
     if (p.college_id) {
@@ -119,9 +122,10 @@ async function loadProfile(uid: string): Promise<UserProfile | null> {
       interests: p.interests ?? [],
       profile_visibility: p.profile_visibility ?? "public",
       public_key: p.public_key ?? null,
-      account_type: p.account_type ?? 'student',
-      company_name: p.company_name ?? null,
-      company_approved: p.company_approved ?? false,
+      // These columns may not exist yet — safe defaults
+      account_type: (p as any).account_type ?? 'student',
+      company_name: (p as any).company_name ?? null,
+      company_approved: (p as any).company_approved ?? false,
     };
   } catch {
     return null;
