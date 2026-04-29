@@ -206,9 +206,22 @@ export default function ProfilePage() {
   function addSocialLink() {
     if (!selectedPlatform || !socialInput.trim()) return;
     const username = socialInput.trim();
-    const url = selectedPlatform.prefix
-      ? selectedPlatform.prefix + username.replace(/^@/, "")
+
+    // Build URL
+    let url = selectedPlatform.prefix
+      ? selectedPlatform.prefix + username.replace(/^@/, "").replace(/^https?:\/\/[^/]+\//, "")
       : username;
+
+    // Validate URL is safe (no javascript: or data: schemes)
+    if (url.toLowerCase().startsWith("javascript:") || url.toLowerCase().startsWith("data:")) {
+      toast.error("Invalid URL");
+      return;
+    }
+
+    // Ensure URLs start with https
+    if (url.includes(".") && !url.startsWith("http")) {
+      url = "https://" + url;
+    }
     const existing = socialLinks.findIndex(l => l.platform === selectedPlatform.id);
     if (existing >= 0) {
       const updated = [...socialLinks];

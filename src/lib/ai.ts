@@ -141,74 +141,35 @@ export async function sendMessage(
     department?: string;
   }
 ): Promise<string> {
-  const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-
-  if (!apiKey) {
-    return "⚠️ AI is not configured yet. Add your Gemini API key to the .env file as VITE_GEMINI_API_KEY. Get a free key at https://aistudio.google.com/app/apikey";
-  }
-
   // Build system prompt with user context
   let systemPrompt = SYSTEM_PROMPTS[context];
-  if (userContext?.name) {
-    systemPrompt += `\n\nThe student's name is ${userContext.name}.`;
-  }
-  if (userContext?.college) {
-    systemPrompt += ` They study at ${userContext.college}.`;
-  }
-  if (userContext?.department) {
-    systemPrompt += ` Their department is ${userContext.department}.`;
-  }
-
-  // Convert messages to Gemini format
-  const geminiMessages = messages.map(m => ({
-    role: m.role === "assistant" ? "model" : "user",
-    parts: [{ text: m.content }],
-  }));
-
-  const body = {
-    system_instruction: {
-      parts: [{ text: systemPrompt }],
-    },
-    contents: geminiMessages,
-    generationConfig: {
-      temperature: 0.7,
-      topK: 40,
-      topP: 0.95,
-      maxOutputTokens: 2048,
-    },
-    safetySettings: [
-      { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_MEDIUM_AND_ABOVE" },
-      { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_MEDIUM_AND_ABOVE" },
-    ],
-  };
+  if (userContext?.name) systemPrompt += `\n\nThe student's name is ${userContext.name}.`;
+  if (userContext?.college) systemPrompt += ` They study at ${userContext.college}.`;
+  if (userContext?.department) systemPrompt += ` Their department is ${userContext.department}.`;
 
   try {
-    const response = await fetch(`${GEMINI_API_URL}?key=${apiKey}`, {
+    // Call Supabase Edge Function — keeps API key server-side, never exposed to browser
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+    const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+
+    const response = await fetch(`${supabaseUrl}/functions/v1/ai-chat`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${supabaseKey}`,
+        "apikey": supabaseKey,
+      },
+      body: JSON.stringify({ messages, systemPrompt }),
     });
 
     if (!response.ok) {
-      const err = await response.json().catch(() => ({}));
-      if (response.status === 429) {
-        return "⏳ Too many requests. Please wait a moment and try again.";
-      }
-      if (response.status === 400) {
-        return "❌ Invalid request. Please try rephrasing your question.";
-      }
-      console.error("Gemini API error:", err);
+      if (response.status === 429) return "⏳ Too many requests. Please wait a moment and try again.";
       return "❌ AI service error. Please try again.";
     }
 
     const data = await response.json();
-    const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-
-    if (!text) {
-      return "I couldn't generate a response. Please try again.";
-    }
-
-    return text;
+    if (data.error) return "⚠️ AI is not configured yet. Ask the admin to set up the Gemini API key.";
+    return data.text ?? "I couldn't generate a response. Please try again.";
   } catch (err) {
     console.error("AI request failed:", err);
     return "❌ Could not connect to AI service. Check your internet connection.";

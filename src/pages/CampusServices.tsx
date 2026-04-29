@@ -210,6 +210,14 @@ export default function CampusServices() {
       }
     }
 
+    // Basic rate limit: check if user submitted same service in last 5 minutes
+    const recentKey = `last_service_${activeService.type}`;
+    const lastSubmit = localStorage.getItem(recentKey);
+    if (lastSubmit && Date.now() - parseInt(lastSubmit) < 5 * 60 * 1000) {
+      toast.error("Please wait 5 minutes before submitting another request of this type");
+      return;
+    }
+
     setSubmitting(true);
     const title = buildTitle(activeService, formData);
     const { error } = await supabase.from("service_requests").insert({
@@ -225,6 +233,7 @@ export default function CampusServices() {
     setSubmitting(false);
 
     if (error) { toast.error(error.message); return; }
+    localStorage.setItem(recentKey, Date.now().toString());
     toast.success(`${activeService.label} request submitted!`);
     setActiveService(null);
     void loadRequests();

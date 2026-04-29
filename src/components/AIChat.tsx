@@ -46,6 +46,17 @@ const QUICK_PROMPTS: Record<AIContext, string[]> = {
   marketplace: ["How to price my textbook?", "Safe transaction tips", "What sells well on campus?"],
 };
 
+// ── Simple HTML sanitizer (strips script/iframe/event handlers) ───────────────
+function sanitizeHtml(html: string): string {
+  return html
+    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "")
+    .replace(/<iframe\b[^<]*(?:(?!<\/iframe>)<[^<]*)*<\/iframe>/gi, "")
+    .replace(/on\w+="[^"]*"/gi, "")
+    .replace(/on\w+='[^']*'/gi, "")
+    .replace(/javascript:/gi, "")
+    .replace(/data:/gi, "");
+}
+
 // ── Message renderer with markdown-like formatting ────────────────────────────
 
 function MessageContent({ content }: { content: string }) {
@@ -101,7 +112,7 @@ function MessageContent({ content }: { content: string }) {
         return (
           <div
             key={i}
-            dangerouslySetInnerHTML={{ __html: `<p>${formatted}</p>` }}
+            dangerouslySetInnerHTML={{ __html: `<p>${sanitizeHtml(formatted)}</p>` }}
             className="[&_strong]:font-semibold [&_em]:italic [&_li]:my-0.5 [&_h1]:text-foreground [&_h2]:text-foreground [&_h3]:text-foreground"
           />
         );
