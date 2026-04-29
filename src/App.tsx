@@ -7,7 +7,6 @@ import { AuthProvider } from "@/context/AuthContext";
 import { ThemeProvider } from "@/context/ThemeContext";
 import { NotificationProvider } from "@/context/NotificationContext";
 import { RequireAuth, RequireAdmin, RedirectIfAuthed } from "@/components/RequireAuth";
-import { EmailVerificationBanner } from "@/components/EmailVerification";
 import { queryClient } from "@/lib/queryClient";
 import AppLayout from "@/components/AppLayout";
 import AdminLayout from "@/components/AdminLayout";
@@ -54,7 +53,6 @@ const App = () => (
         <TooltipProvider>
           <Toaster />
           <Sonner />
-          <EmailVerificationBanner />
           <BrowserRouter>
             <Routes>
               <Route path="/" element={<RedirectIfAuthed><Landing /></RedirectIfAuthed>} />
