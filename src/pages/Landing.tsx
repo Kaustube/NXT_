@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 import {
   Sparkles, ArrowRight, Zap, Shield, Users, MessageSquare,
-  Trophy, Code, BookOpen, Rocket, Heart, Instagram,
+  Trophy, Code, BookOpen, Rocket, Heart, Instagram, Mail,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import Logo from "@/components/Logo";
@@ -140,7 +140,7 @@ export default function Landing() {
       <footer className="relative border-t border-border py-12 px-6">
         <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
           <Logo size="sm" showText />
-          <div className="flex items-center gap-6 text-sm text-muted-foreground">
+          <div className="flex items-center gap-5 text-sm text-muted-foreground flex-wrap justify-center">
             <Link to="/auth" className="hover:text-foreground transition-colors">Sign In</Link>
             <Link to="/auth" className="hover:text-foreground transition-colors">Sign Up</Link>
             <a
@@ -151,6 +151,24 @@ export default function Landing() {
             >
               <Instagram className="h-4 w-4" />
               @nxtcampus
+            </a>
+            <a
+              href="https://x.com/nxt_campus"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1.5 hover:text-foreground transition-colors"
+            >
+              <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+              </svg>
+              @nxt_campus
+            </a>
+            <a
+              href="mailto:nxtcampusofficial@gmail.com"
+              className="flex items-center gap-1.5 hover:text-foreground transition-colors"
+            >
+              <Mail className="h-4 w-4" />
+              nxtcampusofficial@gmail.com
             </a>
           </div>
           <div className="text-sm text-muted-foreground">© 2026 NXT Campus. All rights reserved.</div>
