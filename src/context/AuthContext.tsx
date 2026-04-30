@@ -231,25 +231,39 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     let mounted = true;
 
     async function initialize() {
-      // 1. Check current session immediately
-      const { data: { session: s } } = await supabase.auth.getSession();
-      
-      if (!mounted) return;
+      const safetyTimeout = setTimeout(() => {
+        if (mounted && loading) {
+          console.warn("Auth initialization taking too long, forcing load.");
+          setLoading(false);
+        }
+      }, 10000); // 10s safety net
 
-      if (s?.user) {
-        setSession(s);
-        setUser(s.user);
-        const [roleData, profileData] = await Promise.all([
-          checkUserRoles(s.user.id),
-          loadProfile(s.user.id),
-        ]);
+      try {
+        // 1. Check current session immediately
+        const { data: { session: s } } = await supabase.auth.getSession();
+        
+        if (!mounted) return;
+
+        if (s?.user) {
+          setSession(s);
+          setUser(s.user);
+          const [roleData, profileData] = await Promise.all([
+            checkUserRoles(s.user.id),
+            loadProfile(s.user.id),
+          ]);
+          if (mounted) {
+            applyRoles(roleData);
+            setProfile(profileData);
+          }
+        }
+      } catch (err) {
+        console.error("Auth init error:", err);
+      } finally {
         if (mounted) {
-          applyRoles(roleData);
-          setProfile(profileData);
+          setLoading(false);
+          clearTimeout(safetyTimeout);
         }
       }
-      
-      if (mounted) setLoading(false);
     }
 
     void initialize();
