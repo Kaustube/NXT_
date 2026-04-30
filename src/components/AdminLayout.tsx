@@ -20,6 +20,7 @@ import {
 const ADMIN_NAV = [
   { to: "/admin",                label: "Overview",       icon: LayoutDashboard, end: true },
   { to: "/admin/users",          label: "Users",          icon: Users },
+  { to: "/admin/staff",          label: "Staff Directory",icon: ShieldCheck },
   { to: "/admin/colleges",       label: "Colleges",       icon: GraduationCap },
   { to: "/admin/servers",        label: "Servers",        icon: Server },
   { to: "/admin/events",         label: "Events",         icon: CalendarDays },
@@ -27,8 +28,8 @@ const ADMIN_NAV = [
   { to: "/admin/challenges",     label: "Challenges",     icon: Code2 },
   { to: "/admin/sports",         label: "Sports",         icon: Trophy },
   { to: "/admin/lms",            label: "LMS",            icon: BookOpen },
-  { to: "/admin/monetization",   label: "Monetization",        icon: IndianRupee },
-  { to: "/admin/partners",       label: "Partner Apps",         icon: Handshake },
+  { to: "/admin/monetization",   label: "Monetization",   icon: IndianRupee },
+  { to: "/admin/partners",       label: "Partner Apps",   icon: Handshake },
 ];
 
 export default function AdminLayout() {
