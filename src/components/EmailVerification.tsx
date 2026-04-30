@@ -350,11 +350,7 @@ export function EmailVerificationPage() {
               </Button>
             )}
 
-            {resendCooldown === 0 && (
-              <p className="text-xs text-muted-foreground text-center mt-2">
-                Didn&apos;t get an email? Check spam first. If sending fails, verify `RESEND_API_KEY` and `RESEND_FROM_EMAIL` on the `send-verification-email` Edge Function.
-              </p>
-            )}
+
           </div>
         </div>
       </div>
