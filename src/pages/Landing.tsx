@@ -80,6 +80,13 @@ export default function Landing() {
               Sign In
             </Link>
           </div>
+
+          <div className="animate-in fade-in slide-in-from-bottom-12 duration-700 delay-400">
+            <Link to="/help" className="text-sm text-muted-foreground hover:text-primary flex items-center justify-center gap-1.5 transition-colors">
+              <ShieldCheck className="h-4 w-4" />
+              Need help or facing session issues?
+            </Link>
+          </div>
         </div>
       </section>
 
@@ -101,111 +108,26 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* Benefits */}
-      <section className="relative py-20 px-6 bg-[hsl(var(--surface-1))]">
-        <div className="max-w-6xl mx-auto">
-          <div className="text-center mb-16 space-y-4">
-            <h2 className="text-4xl md:text-5xl font-bold">Built for Ambitious Students</h2>
-            <p className="text-lg text-muted-foreground max-w-2xl mx-auto">Join thousands of students building their future</p>
-          </div>
-          <div className="grid md:grid-cols-3 gap-8">
-            <BenefitCard icon={<Zap className="h-8 w-8" />} title="Lightning Fast" description="Real-time updates, instant messaging, and blazing-fast performance" />
-            <BenefitCard icon={<Shield className="h-8 w-8" />} title="Secure & Private" description="Messages are end-to-end encrypted. Your data stays yours." />
-            <BenefitCard icon={<Heart className="h-8 w-8" />} title="Always Free" description="Core features are free forever. No hidden costs, no surprises" />
-          </div>
-        </div>
-      </section>
-
-      {/* CTA */}
-      <section className="relative py-32 px-6">
-        <div className="max-w-6xl mx-auto grid lg:grid-cols-2 gap-12 items-center">
-          <div className="text-left space-y-8">
-            <h2 className="text-4xl md:text-6xl font-bold leading-tight text-foreground">
-              Ready to Level Up
-              <br />
-              <span className="text-primary">Your College Game?</span>
-            </h2>
-            <p className="text-lg text-muted-foreground max-w-xl leading-relaxed">
-              Start networking, learning, and growing today. Free forever for students.
-            </p>
-            <Link
-              to="/auth"
-              className="inline-flex items-center gap-2 px-10 py-5 rounded-xl bg-primary text-primary-foreground font-bold text-xl hover:scale-105 transition-all hover:shadow-[0_0_40px_hsl(var(--primary)/0.5)]"
-            >
-              Get Started Free
-              <ArrowRight className="h-6 w-6" />
-            </Link>
-          </div>
-
-          <div className="panel p-8 bg-gradient-to-br from-primary/10 via-background to-background border-primary/20 relative overflow-hidden group">
-            <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:scale-110 transition-transform duration-500">
-              <ShieldCheck className="h-32 w-32 text-primary" />
-            </div>
-            <div className="relative z-10 space-y-4">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/20 text-primary text-xs font-bold uppercase tracking-wider">
-                For Organizers & Partners
-              </div>
-              <h3 className="text-2xl font-bold text-foreground">Host Events or Post Jobs</h3>
-              <p className="text-muted-foreground leading-relaxed">
-                Are you a college club, company, or event organizer? Submit an approval ticket to the admin team and get verified listing access in minutes.
-              </p>
-              <Link to="/auth" className="flex items-center gap-2 text-primary font-bold hover:gap-3 transition-all">
-                Learn more about partner access <ArrowRight className="h-4 w-4" />
-              </Link>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Footer */}
       <footer className="relative border-t border-border py-12 px-6">
         <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
           <Logo size="sm" showText />
           <div className="flex items-center gap-5 text-sm text-muted-foreground flex-wrap justify-center">
+            <Link to="/help" className="hover:text-foreground transition-colors font-semibold flex items-center gap-1">
+              <ShieldCheck className="h-4 w-4" /> Help Center
+            </Link>
             <Link to="/auth" className="hover:text-foreground transition-colors">Sign In</Link>
-            <Link to="/auth" className="hover:text-foreground transition-colors">Sign Up</Link>
-            <a
-              href="https://instagram.com/nxtcampus"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-1.5 hover:text-foreground transition-colors"
-            >
-              <Instagram className="h-4 w-4" />
-              @nxtcampus
-            </a>
-            <a
-              href="https://x.com/nxt_campus"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-1.5 hover:text-foreground transition-colors"
-            >
-              <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
-              </svg>
-              @nxt_campus
-            </a>
-            <a
-              href="mailto:nxtcampusofficial@gmail.com"
-              className="flex items-center gap-1.5 hover:text-foreground transition-colors"
-            >
-              <Mail className="h-4 w-4" />
-              nxtcampusofficial@gmail.com
+            <a href="mailto:nxtcampusofficial@gmail.com" className="flex items-center gap-1.5 hover:text-foreground">
+              <Mail className="h-4 w-4" /> nxtcampusofficial@gmail.com
             </a>
           </div>
-          <div className="text-sm text-muted-foreground">© 2026 NXT Campus. All rights reserved.</div>
+          <div className="text-sm text-muted-foreground">© 2026 NXT Campus</div>
         </div>
       </footer>
-
-      {/* Animations injected via global CSS instead of inline style tag */}
     </div>
   );
 }
 
-function FeatureCard({
-  icon, title, description, color, delay,
-}: {
-  icon: React.ReactNode; title: string; description: string; color: string; delay: number;
-}) {
+function FeatureCard({ icon, title, description, color, delay }: { icon: React.ReactNode; title: string; description: string; color: string; delay: number }) {
   return (
     <div
       className={`group relative p-6 rounded-2xl border border-border bg-background/50 backdrop-blur-sm hover:border-primary/50 transition-all duration-300 hover:scale-105 hover:shadow-[0_0_30px_hsl(var(--primary)/0.2)] animate-in fade-in slide-in-from-bottom-4`}
@@ -213,24 +135,12 @@ function FeatureCard({
     >
       <div className={`absolute inset-0 rounded-2xl bg-gradient-to-br ${color} opacity-0 group-hover:opacity-100 transition-opacity duration-300`} />
       <div className="relative z-10">
-        <div className="h-12 w-12 rounded-xl bg-primary/10 text-primary grid place-items-center mb-4 group-hover:scale-110 group-hover:rotate-3 transition-transform duration-300">
+        <div className="h-12 w-12 rounded-xl bg-primary/10 text-primary grid place-items-center mb-4 group-hover:scale-110 transition-transform">
           {icon}
         </div>
         <h3 className="text-lg font-semibold mb-2">{title}</h3>
         <p className="text-sm text-muted-foreground leading-relaxed">{description}</p>
       </div>
-    </div>
-  );
-}
-
-function BenefitCard({ icon, title, description }: { icon: React.ReactNode; title: string; description: string }) {
-  return (
-    <div className="text-center space-y-4 p-6 rounded-2xl hover:bg-background/50 transition-colors">
-      <div className="inline-flex h-16 w-16 rounded-2xl bg-primary/10 text-primary items-center justify-center">
-        {icon}
-      </div>
-      <h3 className="text-xl font-semibold">{title}</h3>
-      <p className="text-muted-foreground leading-relaxed">{description}</p>
     </div>
   );
 }
