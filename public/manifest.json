@@ -1,0 +1,16 @@
+{
+  "name": "NXT — Student Super App",
+  "short_name": "NXT",
+  "description": "The ultimate campus companion for students.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0a0a0c",
+  "theme_color": "#00ffff",
+  "icons": [
+    {
+      "src": "/og-image.png",
+      "sizes": "1200x630",
+      "type": "image/png"
+    }
+  ]
+}

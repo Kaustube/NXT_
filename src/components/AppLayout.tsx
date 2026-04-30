@@ -185,23 +185,23 @@ export default function AppLayout() {
         {aiAssistantEnabled && <AIChat />}
 
         {/* ── Mobile bottom nav ── */}
-        <nav className="md:hidden fixed bottom-0 left-0 right-0 z-30 grid grid-cols-5 border-t border-border/50 bg-[hsl(var(--sidebar-background))] mobile-nav">
+        <nav className="md:hidden fixed bottom-0 left-0 right-0 z-30 grid grid-cols-5 border-t border-border/50 bg-[hsl(var(--sidebar-background))/0.9] backdrop-blur-xl mobile-nav safe-bottom">
           {MOBILE_NAV.map((item) => (
             <NavLink key={item.to} to={item.to}
               className={({ isActive }) =>
-                `flex flex-col items-center justify-center py-2 gap-0.5 text-[10px] transition-colors ${isActive ? "text-primary" : "text-muted-foreground"}`
+                `flex flex-col items-center justify-center py-3 gap-1 text-[10px] transition-all active:scale-90 ${isActive ? "text-primary" : "text-muted-foreground"}`
               }>
-              <item.icon className="h-5 w-5" />
-              {item.label}
+              <item.icon className={`h-5 w-5 transition-transform ${location.pathname === item.to ? "scale-110" : ""}`} />
+              <span className="font-medium">{item.label}</span>
             </NavLink>
           ))}
           {/* "More" button opens full drawer */}
           <button
             onClick={() => setMobileDrawerOpen(true)}
-            className="flex flex-col items-center justify-center py-2 gap-0.5 text-[10px] text-muted-foreground"
+            className="flex flex-col items-center justify-center py-3 gap-1 text-[10px] text-muted-foreground active:scale-90 transition-all"
           >
             <Menu className="h-5 w-5" />
-            More
+            <span className="font-medium">More</span>
           </button>
         </nav>
       </div>

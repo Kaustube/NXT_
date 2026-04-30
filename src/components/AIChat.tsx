@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { useLocation } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { sendMessage, type ChatMessage, type AIContext } from "@/lib/ai";
@@ -154,6 +154,7 @@ type DragSession = {
   dragged: boolean;
   elW: number;
   elH: number;
+  isPanel?: boolean;
 };
 
 // ── Main component ────────────────────────────────────────────────────────────
@@ -170,6 +171,9 @@ export default function AIChat() {
   const [manualContext, setManualContext] = useState<AIContext | null>(null);
   const [showContextPicker, setShowContextPicker] = useState(false);
   const [pos, setPos] = useState(loadWidgetPos);
+  
+  // Separate position for the open panel so it doesn't jump based on the small FAB's bottom-right
+  const [panelPos, setPanelPos] = useState({ right: 24, bottom: 80 });
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -186,17 +190,19 @@ export default function AIChat() {
     }
   }, [pos]);
 
-  function beginDrag(e: React.PointerEvent, elW: number, elH: number) {
+  function beginDrag(e: React.PointerEvent, elW: number, elH: number, isPanel = false) {
     if (e.button !== 0) return;
+    const startPos = isPanel ? panelPos : pos;
     dragRef.current = {
       pointerId: e.pointerId,
       startX: e.clientX,
       startY: e.clientY,
-      startR: pos.right,
-      startB: pos.bottom,
+      startR: startPos.right,
+      startB: startPos.bottom,
       dragged: false,
       elW,
       elH,
+      isPanel,
     };
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
   }
@@ -209,10 +215,12 @@ export default function AIChat() {
     if (Math.hypot(dx, dy) > 8) d.dragged = true;
     if (!d.dragged) return;
     const margin = 8;
-    setPos({
+    const newPos = {
       right: clamp(d.startR - dx, margin, window.innerWidth - d.elW - margin),
       bottom: clamp(d.startB - dy, margin, window.innerHeight - d.elH - margin),
-    });
+    };
+    if (d.isPanel) setPanelPos(newPos);
+    else setPos(newPos);
   }
 
   function releaseDrag(e: React.PointerEvent): boolean | undefined {
@@ -338,11 +346,12 @@ export default function AIChat() {
     }]);
   }
 
-  const shellStyle = { right: pos.right, bottom: pos.bottom };
+  const fabStyle = { right: pos.right, bottom: pos.bottom };
+  const panelStyle = { right: panelPos.right, bottom: panelPos.bottom };
 
   if (!open) {
     return (
-      <div className="fixed z-40 touch-none select-none" style={shellStyle}>
+      <div className="fixed z-40 touch-none select-none" style={fabStyle}>
         <button
           type="button"
           title="Open AI assistant — drag to move"
@@ -364,7 +373,7 @@ export default function AIChat() {
       className={`fixed z-50 touch-none select-none transition-[width] duration-300 ${
         minimized ? "w-auto" : "w-[calc(100vw-2rem)] md:w-[420px]"
       }`}
-      style={shellStyle}
+      style={minimized ? fabStyle : panelStyle}
     >
       {minimized ? (
         <button
@@ -394,7 +403,7 @@ export default function AIChat() {
               aria-label="Move AI chat window"
               onPointerDown={(e) => {
                 e.stopPropagation();
-                beginDrag(e, panelW, panelH);
+                beginDrag(e, panelW, panelH, true);
               }}
               onPointerMove={moveDrag}
               onPointerUp={onPanelGripPointerUp}

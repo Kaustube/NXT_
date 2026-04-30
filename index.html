@@ -8,12 +8,11 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="NXT Campus" />
     <meta name="theme-color" content="#0a0a0f" />
-    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
-    <meta http-equiv="Pragma" content="no-cache" />
-    <meta http-equiv="Expires" content="0" />
     <title>NXT Campus — College Super App</title>
     <meta name="description" content="NXT Campus is the all-in-one platform for college students — chat, learn, connect, book facilities, and build your future.">
-    <meta name="author" content="NXT Campus" />
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="/manifest.json" />
 
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -54,59 +53,6 @@
           animation: spin 0.7s linear infinite;
         "></div>
         <div style="color: hsl(220, 5%, 65%); font-size: 14px;">Loading NXT Campus…</div>
-      </div>
-      <style>
-        @keyframes spin { to { transform: rotate(360deg); } }
-      </style>
-    </div>
-    <script>
-      document.addEventListener('DOMContentLoaded', function() {
-        const observer = new MutationObserver(function() {
-          const loader = document.getElementById('initial-loader');
-          if (loader && document.getElementById('root').children.length > 1) {
-            loader.remove();
-            observer.disconnect();
-          }
-        });
-        observer.observe(document.getElementById('root'), { childList: true });
-      });
-    </script>
-    <script type="module" src="/src/main.tsx"></script>
-  </body>
-</html>
-
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-
-    <meta property="og:type" content="website" />
-    <meta property="og:title" content="NXT — Student Super App">
-    <meta name="twitter:title" content="NXT — Student Super App">
-    <meta property="og:description" content="NXT is a single home for college life — servers, chats, tasks, marketplace, events and more.">
-    <meta name="twitter:description" content="NXT is a single home for college life — servers, chats, tasks, marketplace, events and more.">
-    <meta name="twitter:card" content="summary">
-  </head>
-  <body>
-    <div id="root">
-      <div id="initial-loader" style="
-        min-height: 100vh;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        background: hsl(220, 10%, 4%);
-        flex-direction: column;
-        gap: 16px;
-        font-family: 'Outfit', system-ui, sans-serif;
-      ">
-        <div style="
-          height: 32px; width: 32px;
-          border-radius: 50%;
-          border: 2px solid hsl(180, 100%, 50%);
-          border-top-color: transparent;
-          animation: spin 0.7s linear infinite;
-        "></div>
-        <div style="color: hsl(220, 5%, 65%); font-size: 14px;">Loading NXT…</div>
       </div>
       <style>
         @keyframes spin { to { transform: rotate(360deg); } }
