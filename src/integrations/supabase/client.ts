@@ -15,8 +15,10 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
     autoRefreshToken: true,
     detectSessionInUrl: true,
     flowType: 'pkce',
-    storageKey: 'sb-auth-token',
-    debug: false, // never log auth events in production
+    // Do NOT set storageKey — let Supabase use its default
+    // (sb-{project-ref}-auth-token). Overriding it caused the
+    // version.ts cache-clear to wipe the wrong key.
+    debug: false,
   },
   global: {
     headers: {
