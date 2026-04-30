@@ -220,10 +220,10 @@ export default function Auth() {
     <div className="min-h-screen grid lg:grid-cols-[1.1fr_1fr]">
       {/* Left brand panel */}
       <div className="relative hidden lg:flex flex-col justify-between p-10 border-r border-border bg-[hsl(var(--surface-1))]">
-        <div className="flex items-center gap-2">
+        <Link to="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
             <div className="h-7 w-7 rounded-md bg-primary text-primary-foreground grid place-items-center font-semibold">N</div>
             <span className="text-sm tracking-wide">NXT</span>
-          </div>
+          </Link>
         <div className="space-y-6 max-w-md">
           <h1 className="font-display text-5xl leading-tight text-foreground">
             One quiet home for college life.
@@ -246,10 +246,10 @@ export default function Auth() {
       <div className="flex flex-col justify-center px-6 py-10 lg:px-16 overflow-auto">
         <div className="w-full max-w-sm mx-auto">
           {/* Mobile logo */}
-          <div className="lg:hidden flex items-center gap-2 mb-8">
+          <Link to="/" className="lg:hidden flex items-center gap-2 mb-8 hover:opacity-80 transition-opacity">
             <div className="h-7 w-7 rounded-md bg-primary text-primary-foreground grid place-items-center font-semibold">N</div>
             <span className="text-sm tracking-wide">NXT</span>
-          </div>
+          </Link>
 
           {/* ════════════════════════════════════════
               FORGOT PASSWORD FLOW
