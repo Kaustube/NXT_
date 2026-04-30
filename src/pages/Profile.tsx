@@ -13,7 +13,7 @@ type Streak = { current_streak: number; longest_streak: number; total_days_activ
 type Stats = { connections: number; messages: number; events: number; submissions: number; };
 
 export default function ProfilePage() {
-  const { user, profile: ctxProfile, refreshProfile, updateProfileState } = useAuth();
+  const { user, profile: ctxProfile, loading: authLoading, refreshProfile, updateProfileState } = useAuth();
   const [collegeName, setCollegeName] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
   const [bio, setBio] = useState("");
@@ -51,15 +51,19 @@ export default function ProfilePage() {
 
   async function loadStats() {
     if (!user) return;
-    const [ { data: streakData }, conn, msg, ev, sub ] = await Promise.all([
-      supabase.from("user_streaks").select("*").eq("user_id", user.id).maybeSingle(),
-      supabase.from("connections").select("*", { count: "exact", head: true }).or(`requester_id.eq.${user.id},recipient_id.eq.${user.id}`).eq("status", "accepted"),
-      supabase.from("channel_messages").select("*", { count: "exact", head: true }).eq("author_id", user.id),
-      supabase.from("event_registrations").select("*", { count: "exact", head: true }).eq("user_id", user.id),
-      supabase.from("challenge_submissions").select("*", { count: "exact", head: true }).eq("user_id", user.id).catch(() => ({ count: 0 })),
-    ]);
-    setStreak(streakData as Streak | null);
-    setStats({ connections: conn.count ?? 0, messages: msg.count ?? 0, events: ev.count ?? 0, submissions: (sub as any).count ?? 0 });
+    try {
+      const [ { data: streakData }, conn, msg, ev, sub ] = await Promise.all([
+        supabase.from("user_streaks").select("*").eq("user_id", user.id).maybeSingle(),
+        supabase.from("connections").select("*", { count: "exact", head: true }).or(`requester_id.eq.${user.id},recipient_id.eq.${user.id}`).eq("status", "accepted"),
+        supabase.from("channel_messages").select("*", { count: "exact", head: true }).eq("author_id", user.id),
+        supabase.from("event_registrations").select("*", { count: "exact", head: true }).eq("user_id", user.id),
+        supabase.from("challenge_submissions").select("*", { count: "exact", head: true }).eq("user_id", user.id).catch(() => ({ count: 0 })),
+      ]);
+      setStreak(streakData as Streak | null);
+      setStats({ connections: conn.count ?? 0, messages: msg.count ?? 0, events: ev.count ?? 0, submissions: (sub as any).count ?? 0 });
+    } catch (err) {
+      console.error("Stats load error:", err);
+    }
   }
 
   async function save() {
@@ -125,7 +129,23 @@ export default function ProfilePage() {
     }
   }
 
-  if (!ctxProfile) return <div className="p-10 text-center animate-pulse">Loading profile…</div>;
+  if (authLoading) return (
+    <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-4">
+      <div className="h-12 w-12 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+      <p className="text-sm font-bold text-muted-foreground animate-pulse">Synchronizing your campus profile...</p>
+    </div>
+  );
+
+  if (!ctxProfile) return (
+    <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-4 p-6 text-center">
+      <div className="h-16 w-16 bg-destructive/10 text-destructive rounded-2xl grid place-items-center">
+        <X className="h-8 w-8" />
+      </div>
+      <h2 className="text-xl font-bold">Profile Not Found</h2>
+      <p className="text-sm text-muted-foreground max-w-xs">We couldn't retrieve your profile data. This might be a connection issue.</p>
+      <button onClick={() => window.location.reload()} className="h-10 px-6 rounded-xl bg-primary text-primary-foreground font-bold">Retry Sync</button>
+    </div>
+  );
 
   return (
     <div className="p-4 md:p-6 max-w-4xl mx-auto space-y-6">
