@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Plus, Trash2, Edit3, Check, X, CalendarDays } from "lucide-react";
+import { Plus, Trash2, Edit3, Check, X, CalendarDays, ShieldCheck, Clock } from "lucide-react";
 import { format } from "date-fns";
 
 type Event = {
@@ -32,18 +32,24 @@ export default function AdminEvents() {
   const [editing, setEditing] = useState<Event | null>(null);
   const [form, setForm] = useState({ ...EMPTY });
   const [saving, setSaving] = useState(false);
+  const [pendingEvents, setPendingEvents] = useState<Event[]>([]);
+  const [approving, setApproving] = useState<string | null>(null);
 
-  useEffect(() => { void load(); }, []);
+  useEffect(() => {
+    void load();
+  }, []);
 
   async function load() {
     setLoading(true);
-    const [{ data: ev }, { data: regs }] = await Promise.all([
-      supabase.from("events").select("*").order("starts_at", { ascending: false }),
+    const [{ data: ev }, { data: regs }, { data: pendingEv }] = await Promise.all([
+      supabase.from("events").select("*").or("is_approved.is.null,is_approved.eq.true").order("starts_at", { ascending: false }),
       supabase.from("event_registrations").select("event_id"),
+      (supabase.from("events") as any).select("*").eq("is_approved", false).order("created_at", { ascending: false }),
     ]);
     const regCounts: Record<string, number> = {};
     (regs ?? []).forEach((r: any) => { regCounts[r.event_id] = (regCounts[r.event_id] ?? 0) + 1; });
     setEvents((ev ?? []).map((e: any) => ({ ...e, registrationCount: regCounts[e.id] ?? 0 })));
+    setPendingEvents((pendingEv ?? []) as Event[]);
     setLoading(false);
   }
 
@@ -99,12 +105,23 @@ export default function AdminEvents() {
     else { toast.success("Deleted"); void load(); }
   }
 
+  async function approveEvent(id: string, approve: boolean) {
+    setApproving(id);
+    const { error } = await (supabase.from("events") as any)
+      .update({ is_approved: approve })
+      .eq("id", id);
+    setApproving(null);
+    if (error) { toast.error(error.message); return; }
+    toast.success(approve ? "Event approved and is now live!" : "Event rejected");
+    void load();
+  }
+
   return (
     <div className="p-6 max-w-5xl mx-auto space-y-5">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">Events</h1>
-          <p className="text-muted-foreground text-sm mt-1">{events.length} events</p>
+          <p className="text-muted-foreground text-sm mt-1">{events.length} live events{pendingEvents.length > 0 ? ` · ${pendingEvents.length} pending approval` : ""}</p>
         </div>
         <button onClick={openNew}
           className="h-9 px-4 rounded-lg bg-primary text-primary-foreground text-sm font-bold flex items-center gap-2 hover:opacity-90">
@@ -154,6 +171,53 @@ export default function AdminEvents() {
               {saving ? <div className="h-4 w-4 border-2 border-current border-t-transparent rounded-full animate-spin" /> : <Check className="h-4 w-4" />}
               {editing ? "Update" : "Create"}
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Pending user-submitted events */}
+      {pendingEvents.length > 0 && (
+        <div className="panel p-5 space-y-4 border-yellow-500/30">
+          <div className="flex items-center gap-2">
+            <Clock className="h-4 w-4 text-yellow-500" />
+            <h2 className="font-semibold text-sm">Pending Approval ({pendingEvents.length})</h2>
+            <span className="text-xs text-muted-foreground">— submitted by users, not yet live</span>
+          </div>
+          <div className="space-y-2">
+            {pendingEvents.map(e => (
+              <div key={e.id} className="flex items-center gap-4 p-3 rounded-lg bg-[hsl(var(--surface-2))]">
+                <div className="h-8 w-8 rounded-lg bg-yellow-500/10 text-yellow-500 grid place-items-center shrink-0">
+                  <CalendarDays className="h-4 w-4" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="font-medium text-sm truncate">{e.title}</div>
+                  <div className="text-xs text-muted-foreground">
+                    {format(new Date(e.starts_at), "MMM d, yyyy")} {e.location ? `· ${e.location}` : ""}
+                  </div>
+                </div>
+                <div className="flex items-center gap-1 shrink-0">
+                  <button
+                    onClick={() => approveEvent(e.id, false)}
+                    disabled={approving === e.id}
+                    className="h-8 w-8 rounded-md grid place-items-center text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                    title="Reject"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                  <button
+                    onClick={() => approveEvent(e.id, true)}
+                    disabled={approving === e.id}
+                    className="h-8 px-3 rounded-md text-sm font-bold text-emerald-500 border border-emerald-500/30 hover:bg-emerald-500/10 flex items-center gap-1.5 transition-colors"
+                    title="Approve"
+                  >
+                    {approving === e.id
+                      ? <div className="h-3.5 w-3.5 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                      : <ShieldCheck className="h-3.5 w-3.5" />}
+                    Approve
+                  </button>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       )}

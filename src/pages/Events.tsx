@@ -3,8 +3,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
 import { format, isPast, isToday } from "date-fns";
 import { toast } from "sonner";
-import { CalendarDays, MapPin, Clock } from "lucide-react";
+import { CalendarDays, MapPin, Clock, Pin, Star } from "lucide-react";
 import BackButton from "@/components/BackButton";
+import { RequestBoostDialog } from "@/components/monetization/RequestBoostDialog";
+import { RequestListingAccessDialog } from "@/components/RequestListingAccessDialog";
 
 type Event = {
   id: string;
@@ -14,6 +16,9 @@ type Event = {
   starts_at: string;
   ends_at: string | null;
   location: string | null;
+  is_featured?: boolean;
+  is_pinned?: boolean;
+  ticket_price?: number;
 };
 
 const KIND_COLOR: Record<string, string> = {
@@ -71,7 +76,13 @@ export default function Events() {
     return isPast(end) && !isToday(new Date(e.starts_at));
   }
 
-  const upcoming = events.filter(e => !isEventPast(e));
+  const upcoming = events.filter(e => !isEventPast(e)).sort((a, b) => {
+    if (a.is_pinned && !b.is_pinned) return -1;
+    if (!a.is_pinned && b.is_pinned) return 1;
+    if (a.is_featured && !b.is_featured) return -1;
+    if (!a.is_featured && b.is_featured) return 1;
+    return 0;
+  });
   const past = events.filter(e => isEventPast(e));
   const shown = tab === "upcoming" ? upcoming : past;
 
@@ -83,6 +94,22 @@ export default function Events() {
           <h1 className="font-display text-4xl mt-1">What's happening</h1>
         </div>
         <BackButton to="/dashboard" label="Dashboard" />
+      </div>
+
+      <div className="panel p-5 flex flex-col gap-4 md:flex-row md:items-center md:justify-between border-primary/20 bg-gradient-to-r from-primary/10 via-background to-background">
+        <div>
+          <div className="text-xs uppercase tracking-wider text-primary font-semibold">For organizers</div>
+          <div className="text-sm font-semibold mt-1">Need event listing access?</div>
+          <p className="text-sm text-muted-foreground mt-0.5">
+            Event organizers can send an access request to the admin team first. Once approved, they can list events without a separate signup flow.
+          </p>
+        </div>
+        <RequestListingAccessDialog
+          services={[{ value: "events", label: "Events" }]}
+          defaultService="events"
+          title="Request event listing access"
+          description="Share your organizer details and the kind of event you want to publish. The admin team will review this request before enabling event listing access."
+        />
       </div>
 
       {/* Tabs */}
@@ -126,8 +153,11 @@ export default function Events() {
             return (
               <div
                 key={e.id}
-                className={`panel p-5 flex flex-col md:flex-row md:items-center md:gap-6 transition-opacity ${past ? "opacity-60" : ""}`}
+                className={`panel p-5 flex flex-col md:flex-row md:items-center md:gap-6 transition-opacity relative overflow-hidden ${past ? "opacity-60" : ""} ${e.is_featured && !past ? "border-amber-500/50 shadow-[0_0_15px_rgba(245,158,11,0.1)]" : ""}`}
               >
+                {e.is_featured && !past && (
+                  <div className="absolute top-0 left-0 w-1 h-full bg-amber-500" />
+                )}
                 {/* Date block */}
                 <div className="md:w-24 shrink-0 mb-3 md:mb-0 text-center md:text-left">
                   <div className="text-3xl font-bold leading-none">
@@ -156,8 +186,25 @@ export default function Events() {
                     {past && (
                       <span className="text-xs text-muted-foreground">Ended</span>
                     )}
+                    {e.is_pinned && !past && (
+                      <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-500 border border-blue-500/20 flex items-center gap-1">
+                        <Pin className="h-3 w-3" /> Pinned
+                      </span>
+                    )}
+                    {e.is_featured && !past && (
+                      <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-500 border border-amber-500/20 flex items-center gap-1">
+                        <Star className="h-3 w-3" /> Featured
+                      </span>
+                    )}
                   </div>
-                  <div className="text-base font-semibold">{e.title}</div>
+                  <div className="text-base font-semibold flex items-center gap-2">
+                    {e.title}
+                    {e.ticket_price && e.ticket_price > 0 && (
+                      <span className="text-xs bg-muted px-1.5 py-0.5 rounded font-mono text-muted-foreground">
+                        ₹{e.ticket_price}
+                      </span>
+                    )}
+                  </div>
                   <div className="text-sm text-muted-foreground mt-1 line-clamp-2">{e.description}</div>
                   {e.location && (
                     <div className="flex items-center gap-1 text-xs text-muted-foreground mt-1.5">
@@ -169,7 +216,7 @@ export default function Events() {
 
                 {/* Action */}
                 {!past && (
-                  <div className="md:ml-4 mt-3 md:mt-0 shrink-0">
+                  <div className="md:ml-4 mt-3 md:mt-0 shrink-0 flex flex-col gap-2">
                     <button
                       onClick={() => toggle(e)}
                       className={`h-9 px-5 rounded-lg text-sm font-semibold transition-all ${
@@ -180,6 +227,8 @@ export default function Events() {
                     >
                       {isReg ? "Unregister" : "Register"}
                     </button>
+                    {/* Event Boost Button */}
+                    <RequestBoostDialog moduleType="event" targetId={e.id} />
                   </div>
                 )}
               </div>

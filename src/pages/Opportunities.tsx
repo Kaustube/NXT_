@@ -4,6 +4,7 @@ import {
   ExternalLink, Search, Filter, ChevronDown, ChevronUp,
   Building2, GraduationCap, Star, CheckCircle2, Calendar,
 } from "lucide-react";
+import { RequestListingAccessDialog } from "@/components/RequestListingAccessDialog";
 
 // ─── DATA ────────────────────────────────────────────────────────────────────
 
@@ -449,6 +450,30 @@ export default function Opportunities() {
             </button>
           ))}
         </div>
+
+        {(tab === "internships" || tab === "jobs") && (
+          <div className="panel p-5 flex flex-col gap-4 md:flex-row md:items-center md:justify-between border-primary/20 bg-gradient-to-r from-primary/10 via-background to-background">
+            <div>
+              <div className="text-xs uppercase tracking-wider text-primary font-semibold">For companies and organizers</div>
+              <div className="text-sm font-semibold mt-1">
+                {tab === "jobs" ? "Need job listing access?" : "Need internship listing access?"}
+              </div>
+              <p className="text-sm text-muted-foreground mt-0.5">
+                Send one request ticket to admin first. After approval, the account can list roles here without any separate registration type.
+              </p>
+            </div>
+            <RequestListingAccessDialog
+              services={[{ value: tab, label: tab === "jobs" ? "Jobs" : "Internships" }]}
+              defaultService={tab}
+              title={tab === "jobs" ? "Request job listing access" : "Request internship listing access"}
+              description={
+                tab === "jobs"
+                  ? "Share your company details and the jobs you plan to publish. The admin team will review this request before enabling job listings."
+                  : "Share your company details and the internships you plan to publish. The admin team will review this request before enabling internship listings."
+              }
+            />
+          </div>
+        )}
 
         {/* Search + Tag filters */}
         <div className="flex flex-wrap gap-2 items-center">

@@ -5,6 +5,8 @@ import { useAuth } from "@/context/AuthContext";
 import { Plus, X, Edit3, Trash2, Check, Tag, Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
+import { Rocket, AlertCircle } from "lucide-react";
+import { RequestBoostDialog } from "@/components/monetization/RequestBoostDialog";
 
 type Listing = {
   id: string;
@@ -17,6 +19,9 @@ type Listing = {
   college_only: boolean;
   active: boolean;
   created_at: string;
+  is_urgent?: boolean;
+  is_campus_featured?: boolean;
+  boost_until?: string | null;
 };
 type Seller = { user_id: string; display_name: string; username: string };
 
@@ -129,6 +134,14 @@ export default function Marketplace() {
       if (collegeOnly && l.college_id !== meCollege) return false;
       if (l.college_only && l.college_id !== meCollege) return false;
       return true;
+    }).sort((a, b) => {
+      // Sort campus featured first
+      if (a.is_campus_featured && !b.is_campus_featured) return -1;
+      if (!a.is_campus_featured && b.is_campus_featured) return 1;
+      // Sort urgent next
+      if (a.is_urgent && !b.is_urgent) return -1;
+      if (!a.is_urgent && b.is_urgent) return 1;
+      return 0;
     });
   }, [listings, filter, collegeOnly, meCollege, user]);
 
@@ -212,12 +225,25 @@ export default function Marketplace() {
           const seller = sellers[l.seller_id];
           const isOwner = l.seller_id === user?.id;
           return (
-            <div key={l.id} className="panel p-4 flex flex-col group">
+            <div key={l.id} className={`panel p-4 flex flex-col group relative overflow-hidden ${l.is_campus_featured ? 'border-amber-500/50 shadow-[0_0_15px_rgba(245,158,11,0.1)]' : ''}`}>
+              {l.is_campus_featured && (
+                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-amber-400 to-orange-500" />
+              )}
               <div className="flex items-start justify-between gap-2 mb-2">
                 <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${CATEGORY_COLOR[l.category]}`}>
                   {CATEGORY_LABEL[l.category]}
                 </span>
-                <div className="flex items-center gap-1 font-semibold text-sm">
+                <div className="flex flex-wrap items-center justify-end gap-1 font-semibold text-sm">
+                  {l.is_urgent && (
+                    <span className="px-1.5 py-0.5 rounded flex items-center gap-1 text-[10px] bg-red-500/10 text-red-500 mr-1">
+                      <AlertCircle className="h-3 w-3" /> Urgent
+                    </span>
+                  )}
+                  {l.is_campus_featured && (
+                    <span className="px-1.5 py-0.5 rounded flex items-center gap-1 text-[10px] bg-amber-500/10 text-amber-500 mr-1">
+                      <Rocket className="h-3 w-3" /> Featured
+                    </span>
+                  )}
                   <Tag className="h-3.5 w-3.5 text-muted-foreground" />
                   ₹{l.price}
                 </div>
@@ -236,6 +262,15 @@ export default function Marketplace() {
 
                 {isOwner ? (
                   <div className="flex items-center gap-1 shrink-0">
+                    <RequestBoostDialog 
+                      moduleType="listing" 
+                      targetId={l.id} 
+                      trigger={
+                        <button title="Boost" className="h-7 w-7 rounded-md grid place-items-center text-amber-500 hover:bg-amber-500/10 transition-colors">
+                          <Rocket className="h-3.5 w-3.5" />
+                        </button>
+                      }
+                    />
                     <button onClick={() => openEdit(l)} title="Edit"
                       className="h-7 w-7 rounded-md grid place-items-center text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors">
                       <Edit3 className="h-3.5 w-3.5" />

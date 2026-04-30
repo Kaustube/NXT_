@@ -44,6 +44,8 @@ import AdminSports from "./pages/admin/AdminSports";
 import AdminLMS from "./pages/admin/AdminLMS";
 import AdminEvents from "./pages/admin/AdminEvents";
 import AdminNotifications from "./pages/admin/AdminNotifications";
+import AdminMonetization from "./pages/admin/AdminMonetization";
+import AdminPartners from "./pages/admin/AdminPartners";
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -100,6 +102,8 @@ const App = () => (
                   <Route path="/admin/lms" element={<AdminLMS />} />
                   <Route path="/admin/events" element={<AdminEvents />} />
                   <Route path="/admin/notifications" element={<AdminNotifications />} />
+                  <Route path="/admin/monetization" element={<AdminMonetization />} />
+                  <Route path="/admin/partners" element={<AdminPartners />} />
                 </Route>
               </Route>
 

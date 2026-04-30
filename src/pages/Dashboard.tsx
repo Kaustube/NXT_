@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
+import { RequestListingAccessDialog } from "@/components/RequestListingAccessDialog";
 import {
   Plus, Check, Trash2, Flame, CalendarDays,
   Users, MessageSquare, Trophy, ArrowRight,
@@ -189,6 +190,23 @@ export default function Dashboard() {
             <span className="text-xs font-medium text-muted-foreground group-hover:text-foreground transition-colors">{q.label}</span>
           </Link>
         ))}
+      </div>
+
+      <div className="panel p-5 flex flex-col gap-4 md:flex-row md:items-center md:justify-between border-primary/20 bg-gradient-to-r from-primary/10 via-background to-background">
+        <div className="space-y-1">
+          <div className="text-xs uppercase tracking-wider text-primary font-semibold">For companies and organizers</div>
+          <h2 className="text-xl font-semibold">Need to post an event, job, or internship?</h2>
+          <p className="text-sm text-muted-foreground max-w-2xl">
+            Send one approval ticket to the admin team. After review, listing access can be enabled without any separate partner signup flow.
+          </p>
+        </div>
+        <RequestListingAccessDialog
+          services={[
+            { value: "events", label: "Events" },
+            { value: "jobs", label: "Jobs" },
+            { value: "internships", label: "Internships" },
+          ]}
+        />
       </div>
 
       <div className="grid lg:grid-cols-3 gap-5">

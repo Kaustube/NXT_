@@ -22,6 +22,7 @@ export type AdminLevel =
   | 'lms_admin'
   | 'services_admin'
   | 'notifications_admin'
+  | 'finance_admin'
   | 'moderator';
 
 // ── Profile type (loaded once, shared everywhere) ─────────────────────────────
@@ -58,6 +59,7 @@ type AuthContextType = {
   isProfessor: boolean;
   isCompany: boolean;
   isCollegeAdmin: boolean;
+  isFinanceAdmin: boolean;
   adminLevel: AdminLevel | null;
   roles: UserRole[];
   emailVerified: boolean;
@@ -86,8 +88,8 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 async function loadProfile(uid: string): Promise<UserProfile | null> {
   try {
     // Single query with join — one round trip instead of two
-    const { data: p, error } = await supabase
-      .from("profiles")
+    const { data: p, error } = await (supabase
+      .from("profiles") as any)
       .select("user_id, display_name, username, email, avatar_url, college_id, roll_number, bio, skills, interests, profile_visibility, public_key")
       .eq("user_id", uid)
       .maybeSingle();
@@ -141,24 +143,25 @@ async function checkUserRoles(uid: string): Promise<{
   isProfessor: boolean;
   isCompany: boolean;
   isCollegeAdmin: boolean;
+  isFinanceAdmin: boolean;
   adminLevel: AdminLevel | null;
   emailVerified: boolean;
 }> {
   try {
-    const { data: rolesData } = await supabase
-      .from("user_roles")
+    const { data: rolesData } = await (supabase
+      .from("user_roles") as any)
       .select("role, admin_level, scope_type")
       .eq("user_id", uid);
 
-    const rows = rolesData ?? [];
-    const roles = rows.map(r => r.role as UserRole);
+    const rows = (rolesData ?? []) as any[];
+    const roles = rows.map((r: any) => r.role as UserRole);
 
     // Find admin level
-    const adminRow = rows.find(r => r.role === 'admin');
+    const adminRow = rows.find((r: any) => r.role === 'admin');
     const adminLevel = (adminRow?.admin_level as AdminLevel) ?? null;
 
-    const { data: profileData } = await supabase
-      .from("profiles")
+    const { data: profileData } = await (supabase
+      .from("profiles") as any)
       .select("email_verified")
       .eq("user_id", uid)
       .maybeSingle();
@@ -170,6 +173,7 @@ async function checkUserRoles(uid: string): Promise<{
       isProfessor: roles.includes('professor'),
       isCompany: roles.includes('company'),
       isCollegeAdmin: adminLevel === 'college_admin' || roles.includes('college_admin'),
+      isFinanceAdmin: adminLevel === 'finance_admin',
       adminLevel,
       emailVerified: profileData?.email_verified || false,
     };
@@ -181,6 +185,7 @@ async function checkUserRoles(uid: string): Promise<{
       isProfessor: false,
       isCompany: false,
       isCollegeAdmin: false,
+      isFinanceAdmin: false,
       adminLevel: null,
       emailVerified: false,
     };
@@ -199,6 +204,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isProfessor, setIsProfessor] = useState(false);
   const [isCompany, setIsCompany] = useState(false);
   const [isCollegeAdmin, setIsCollegeAdmin] = useState(false);
+  const [isFinanceAdmin, setIsFinanceAdmin] = useState(false);
   const [adminLevel, setAdminLevel] = useState<AdminLevel | null>(null);
   const [roles, setRoles] = useState<UserRole[]>(['member']);
   const [emailVerified, setEmailVerified] = useState(false);
@@ -210,6 +216,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setIsProfessor(r.isProfessor);
     setIsCompany(r.isCompany);
     setIsCollegeAdmin(r.isCollegeAdmin);
+    setIsFinanceAdmin(r.isFinanceAdmin);
     setAdminLevel(r.adminLevel);
     setEmailVerified(r.emailVerified);
   }
@@ -235,7 +242,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setSession(null); setUser(null); setProfile(null);
         setRoles(['member']); setIsAdmin(false); setIsSuperAdmin(false);
         setIsProfessor(false); setIsCompany(false); setIsCollegeAdmin(false);
-        setAdminLevel(null); setEmailVerified(false);
+        setIsFinanceAdmin(false); setAdminLevel(null); setEmailVerified(false);
         return;
       }
       if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION') {
@@ -302,7 +309,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signOut = async () => {
     await supabase.auth.signOut();
     setIsAdmin(false); setIsSuperAdmin(false); setIsProfessor(false);
-    setIsCompany(false); setIsCollegeAdmin(false); setAdminLevel(null);
+    setIsCompany(false); setIsCollegeAdmin(false); setIsFinanceAdmin(false); setAdminLevel(null);
     setRoles(['member']); setEmailVerified(false);
     setUser(null); setSession(null); setProfile(null);
     window.location.href = '/auth';
@@ -311,7 +318,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   return (
     <AuthContext.Provider value={{
       user, session, profile, loading,
-      isAdmin, isSuperAdmin, isProfessor, isCompany, isCollegeAdmin,
+      isAdmin, isSuperAdmin, isProfessor, isCompany, isCollegeAdmin, isFinanceAdmin,
       adminLevel, roles, emailVerified,
       signIn, signUp, signOut, refreshRoles, refreshProfile,
     }}>

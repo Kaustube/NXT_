@@ -13,6 +13,8 @@ import {
   CalendarDays,
   ExternalLink,
   GraduationCap,
+  IndianRupee,
+  Handshake,
 } from "lucide-react";
 
 const ADMIN_NAV = [
@@ -25,10 +27,12 @@ const ADMIN_NAV = [
   { to: "/admin/challenges",     label: "Challenges",     icon: Code2 },
   { to: "/admin/sports",         label: "Sports",         icon: Trophy },
   { to: "/admin/lms",            label: "LMS",            icon: BookOpen },
+  { to: "/admin/monetization",   label: "Monetization",        icon: IndianRupee },
+  { to: "/admin/partners",       label: "Partner Apps",         icon: Handshake },
 ];
 
 export default function AdminLayout() {
-  const { signOut } = useAuth();
+  const auth = useAuth();
 
   return (
     <div className="min-h-screen flex bg-background">
@@ -47,7 +51,9 @@ export default function AdminLayout() {
 
         {/* Nav */}
         <nav className="flex-1 p-2 space-y-0.5">
-          {ADMIN_NAV.map((item) => (
+          {ADMIN_NAV.filter(item => 
+            item.to !== "/admin/monetization" || (auth.isSuperAdmin || auth.isFinanceAdmin || auth.isAdmin)
+          ).map((item) => (
             <NavLink
               key={item.to}
               to={item.to}
@@ -69,7 +75,7 @@ export default function AdminLayout() {
             Back to App
           </NavLink>
           <button
-            onClick={() => signOut()}
+            onClick={() => auth.signOut()}
             className="nav-item w-full text-left text-muted-foreground hover:text-destructive"
           >
             <LogOut className="h-4 w-4" />

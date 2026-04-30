@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Plus, Users, Lock, Globe, Hash, Copy, Check, UserPlus, Settings } from "lucide-react";
+import { Plus, Users, Lock, Globe, Hash, Copy, Check, UserPlus, Settings, Megaphone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { RequestBoostDialog } from "@/components/monetization/RequestBoostDialog";
 
 type Server = {
   id: string;
@@ -20,6 +21,7 @@ type Server = {
   is_private: boolean;
   member_count: number;
   user_role?: string;
+  is_promoted?: boolean;
 };
 
 export default function ServersNew() {
@@ -56,16 +58,13 @@ export default function ServersNew() {
   async function loadServers() {
     setLoading(true);
     
-    // Load user's servers (college + joined groups)
-    const { data: myServers } = await supabase
-      .from("user_servers")
+    const { data: myServers } = await (supabase.from("user_servers") as any)
       .select("*")
       .order("kind", { ascending: true })
       .order("name", { ascending: true });
     
     // Load public servers (global + public groups not joined)
-    const { data: pubServers } = await supabase
-      .from("servers")
+    const { data: pubServers } = await (supabase.from("servers") as any)
       .select(`
         *,
         server_members!left(user_id)
@@ -75,16 +74,21 @@ export default function ServersNew() {
       .order("name", { ascending: true });
     
     // Filter out servers user is already in
-    const myServerIds = new Set((myServers || []).map(s => s.id));
+    const myServerIds = new Set((myServers || []).map((s: any) => s.id));
     const availablePublic = (pubServers || [])
       .filter(s => !myServerIds.has(s.id))
       .map(s => ({
         ...s,
         member_count: s.server_members?.length || 0,
-      }));
+      }))
+      .sort((a: any, b: any) => {
+        if (a.is_promoted && !b.is_promoted) return -1;
+        if (!a.is_promoted && b.is_promoted) return 1;
+        return 0;
+      });
     
-    setServers(myServers || []);
-    setPublicServers(availablePublic);
+    setServers(myServers as any || []);
+    setPublicServers(availablePublic as any);
     setLoading(false);
   }
 
@@ -96,7 +100,7 @@ export default function ServersNew() {
     
     setCreating(true);
     try {
-      const { data, error } = await supabase.rpc("create_group_chat", {
+      const { data, error } = await (supabase.rpc as any)("create_group_chat", {
         p_name: groupName.trim(),
         p_description: groupDescription.trim() || null,
         p_is_private: isPrivate,
@@ -123,7 +127,7 @@ export default function ServersNew() {
     try {
       const { error } = await supabase
         .from("server_members")
-        .insert({ server_id: serverId, user_id: user!.id, role: "member" });
+        .insert({ server_id: serverId, user_id: user!.id, role: "member" } as any);
       
       if (error) throw error;
       
@@ -142,7 +146,7 @@ export default function ServersNew() {
     
     setJoining(true);
     try {
-      const { data, error } = await supabase.rpc("join_server_with_invite", {
+      const { data, error } = await (supabase.rpc as any)("join_server_with_invite", {
         p_invite_code: inviteCode.trim().toUpperCase(),
       });
       
@@ -164,7 +168,7 @@ export default function ServersNew() {
     setInviteDialogOpen(true);
     
     try {
-      const { data, error } = await supabase.rpc("create_server_invite", {
+      const { data, error } = await (supabase.rpc as any)("create_server_invite", {
         p_server_id: server.id,
         p_max_uses: null,
         p_expires_in_hours: 168, // 7 days
@@ -172,7 +176,7 @@ export default function ServersNew() {
       
       if (error) throw error;
       
-      setGeneratedInvite(data);
+      setGeneratedInvite(data as string);
     } catch (error: any) {
       toast.error(error.message || "Failed to generate invite");
       setInviteDialogOpen(false);
@@ -445,10 +449,18 @@ function ServerCard({
   isMember: boolean;
 }) {
   return (
-    <Card className="p-4 hover:bg-muted/50 transition-colors">
+    <Card className={`p-4 hover:bg-muted/50 transition-colors relative overflow-hidden ${server.is_promoted ? 'border-primary/50 shadow-[0_0_15px_rgba(var(--primary),0.1)]' : ''}`}>
+      {server.is_promoted && (
+        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-primary to-primary/50" />
+      )}
       <div className="flex items-start justify-between mb-3">
         <div className="flex-1 min-w-0">
-          <h3 className="font-semibold truncate">{server.name}</h3>
+          <h3 className="font-semibold truncate flex items-center gap-2">
+            {server.name}
+            {server.is_promoted && (
+              <Megaphone className="h-3.5 w-3.5 text-primary shrink-0" />
+            )}
+          </h3>
           <div className="flex items-center gap-2 mt-1">
             {server.kind === "college" && (
               <Badge variant="secondary" className="text-xs">
@@ -492,15 +504,26 @@ function ServerCard({
         {isMember ? (
           <div className="flex gap-2">
             {(server.user_role === "owner" || server.user_role === "admin") && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={onInvite}
-                className="gap-1"
-              >
-                <UserPlus className="h-3 w-3" />
-                Invite
-              </Button>
+              <>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={onInvite}
+                  className="gap-1"
+                >
+                  <UserPlus className="h-3 w-3" />
+                  Invite
+                </Button>
+                <RequestBoostDialog 
+                  moduleType="club" 
+                  targetId={server.id} 
+                  trigger={
+                    <Button variant="ghost" size="sm" className="text-primary hover:text-primary hover:bg-primary/10 px-2">
+                      <Megaphone className="h-3.5 w-3.5" />
+                    </Button>
+                  } 
+                />
+              </>
             )}
             <Button
               variant="outline"

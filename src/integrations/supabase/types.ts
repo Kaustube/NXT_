@@ -339,6 +339,54 @@ export type Database = {
         }
         Relationships: []
       }
+      partner_applications: {
+        Row: {
+          admin_notes: string | null
+          company_name: string
+          contact_email: string
+          created_at: string
+          description: string | null
+          id: string
+          phone_number: string | null
+          requested_services: string[]
+          resolved_at: string | null
+          resolved_by: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          admin_notes?: string | null
+          company_name: string
+          contact_email: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          phone_number?: string | null
+          requested_services?: string[]
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          admin_notes?: string | null
+          company_name?: string
+          contact_email?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          phone_number?: string | null
+          requested_services?: string[]
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       coding_challenges: {
         Row: {
           active_date: string
@@ -586,6 +634,8 @@ export type Database = {
           email: string
           id: string
           interests: string[]
+          is_partner: boolean
+          approved_services: string[]
           roll_number: string | null
           skills: string[]
           updated_at: string
@@ -601,6 +651,8 @@ export type Database = {
           email: string
           id?: string
           interests?: string[]
+          is_partner?: boolean
+          approved_services?: string[]
           roll_number?: string | null
           skills?: string[]
           updated_at?: string
@@ -616,6 +668,8 @@ export type Database = {
           email?: string
           id?: string
           interests?: string[]
+          is_partner?: boolean
+          approved_services?: string[]
           roll_number?: string | null
           skills?: string[]
           updated_at?: string
@@ -755,6 +809,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      approve_partner_application: {
+        Args: { p_admin_id: string; p_application_id: string }
+        Returns: undefined
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
