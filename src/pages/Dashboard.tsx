@@ -1,13 +1,16 @@
 import { useEffect, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
 import { RequestListingAccessDialog } from "@/components/RequestListingAccessDialog";
+import { WellnessTracker } from "@/components/WellnessTracker";
 import {
   Plus, Check, Trash2, Flame, CalendarDays,
   Users, MessageSquare, Trophy, ArrowRight,
   Server, Gamepad2, BookOpen, ShoppingBag, Building2,
 } from "lucide-react";
 import { toast } from "sonner";
+import { format, isPast, isToday, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, isSameMonth, addMonths, subMonths } from "date-fns";
 
 type Task = {
   id: string;
@@ -151,6 +154,9 @@ export default function Dashboard() {
           </button>
         )}
       </div>
+
+      {/* Wellness Tracker Component Integration */}
+      <WellnessTracker />
 
       {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
@@ -386,7 +392,6 @@ export default function Dashboard() {
               {Array.from({ length: padStart }).map((_, i) => <div key={`p${i}`} />)}
               {days.map((d) => {
                 const iso = format(d, "yyyy-MM-dd");
-                const hasTask = taskDates.has(iso);
                 const today = isSameDay(d, new Date());
                 return (
                   <div
@@ -399,7 +404,12 @@ export default function Dashboard() {
                         : "text-muted-foreground/40"
                     }`}
                   >
-
+                    {format(d, "d")}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
 
           {/* Trophy / streak card */}
           <div className="panel p-5">
