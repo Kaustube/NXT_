@@ -117,22 +117,42 @@ export default function Landing() {
 
       {/* CTA */}
       <section className="relative py-32 px-6">
-        <div className="max-w-4xl mx-auto text-center space-y-8">
-          <h2 className="text-4xl md:text-6xl font-bold leading-tight">
-            Ready to Level Up
-            <br />
-            <span className="text-primary">Your College Game?</span>
-          </h2>
-          <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-            Start networking, learning, and growing today. Free forever for students.
-          </p>
-          <Link
-            to="/auth"
-            className="inline-flex items-center gap-2 px-10 py-5 rounded-xl bg-primary text-primary-foreground font-bold text-xl hover:scale-105 transition-all hover:shadow-[0_0_40px_hsl(var(--primary)/0.5)]"
-          >
-            Get Started Free
-            <ArrowRight className="h-6 w-6" />
-          </Link>
+        <div className="max-w-6xl mx-auto grid lg:grid-cols-2 gap-12 items-center">
+          <div className="text-left space-y-8">
+            <h2 className="text-4xl md:text-6xl font-bold leading-tight text-foreground">
+              Ready to Level Up
+              <br />
+              <span className="text-primary">Your College Game?</span>
+            </h2>
+            <p className="text-lg text-muted-foreground max-w-xl leading-relaxed">
+              Start networking, learning, and growing today. Free forever for students.
+            </p>
+            <Link
+              to="/auth"
+              className="inline-flex items-center gap-2 px-10 py-5 rounded-xl bg-primary text-primary-foreground font-bold text-xl hover:scale-105 transition-all hover:shadow-[0_0_40px_hsl(var(--primary)/0.5)]"
+            >
+              Get Started Free
+              <ArrowRight className="h-6 w-6" />
+            </Link>
+          </div>
+
+          <div className="panel p-8 bg-gradient-to-br from-primary/10 via-background to-background border-primary/20 relative overflow-hidden group">
+            <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:scale-110 transition-transform duration-500">
+              <ShieldCheck className="h-32 w-32 text-primary" />
+            </div>
+            <div className="relative z-10 space-y-4">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/20 text-primary text-xs font-bold uppercase tracking-wider">
+                For Organizers & Partners
+              </div>
+              <h3 className="text-2xl font-bold text-foreground">Host Events or Post Jobs</h3>
+              <p className="text-muted-foreground leading-relaxed">
+                Are you a college club, company, or event organizer? Submit an approval ticket to the admin team and get verified listing access in minutes.
+              </p>
+              <Link to="/auth" className="flex items-center gap-2 text-primary font-bold hover:gap-3 transition-all">
+                Learn more about partner access <ArrowRight className="h-4 w-4" />
+              </Link>
+            </div>
+          </div>
         </div>
       </section>
 

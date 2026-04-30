@@ -135,6 +135,13 @@ export default function AppLayout() {
             </div>
             <UserRound className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
           </NavLink>
+          <NavLink to="/help"
+            className={({ isActive }) =>
+              `w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs text-muted-foreground hover:text-foreground hover:bg-[hsl(var(--surface-2))] transition-colors ${isActive ? "bg-[hsl(var(--surface-2))]" : ""}`
+            }>
+            <HelpCircle className="h-3.5 w-3.5" />
+            Help & Tickets
+          </NavLink>
           <button onClick={() => signOut()}
             className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors">
             <LogOut className="h-3.5 w-3.5" />
