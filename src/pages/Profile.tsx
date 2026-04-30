@@ -5,11 +5,10 @@ import { toast } from "sonner";
 import {
   X, Camera, Edit3, GraduationCap, Flame, Trophy, Users,
   MessageSquare, Plus, Check, Hash, Briefcase, Star,
-  Calendar, Globe, Lock,
-} from "lucide-react";
+
 import { format } from "date-fns";
 
-type Profile = { user_id: string; display_name: string; username: string; email: string; roll_number: string | null; bio: string | null; skills: string[]; interests: string[]; college_id: string | null; avatar_url: string | null; profile_visibility: "public" | "private"; };
+type Profile = { user_id: string; display_name: string; username: string; email: string; roll_number: string | null; bio: string | null; skills: string[]; interests: string[]; social_links: Array<{ platform: string; url: string; username: string }>; college_id: string | null; avatar_url: string | null; profile_visibility: "public" | "private"; };
 type Streak = { current_streak: number; longest_streak: number; total_days_active: number; last_active_date: string | null; };
 type Stats = { connections: number; messages: number; events: number; submissions: number; };
 
@@ -28,6 +27,7 @@ export default function ProfilePage() {
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [profileVisibility, setProfileVisibility] = useState<"public" | "private">("public");
   const [username, setUsername] = useState("");
+  const [socialLinks, setSocialLinks] = useState<Array<{ platform: string; url: string; username: string }>>([]);
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -41,6 +41,7 @@ export default function ProfilePage() {
       setAvatarUrl(ctxProfile.avatar_url);
       setProfileVisibility(ctxProfile.profile_visibility ?? "public");
       setCollegeName(ctxProfile.college_name);
+      setSocialLinks(ctxProfile.social_links ?? []);
     }
   }, [ctxProfile]);
 
@@ -66,12 +67,13 @@ export default function ProfilePage() {
     if (!user) return;
     const newUsername = username.trim().toLowerCase();
     const { error } = await supabase.from("profiles").update({ 
-      bio, skills, interests, display_name: displayName, profile_visibility: profileVisibility, username: newUsername 
+      bio, skills, interests, display_name: displayName, profile_visibility: profileVisibility, username: newUsername,
+      social_links: socialLinks
     }).eq("user_id", user.id);
     
     if (error) toast.error(error.message);
     else {
-      updateProfileState({ display_name: displayName, username: newUsername, bio, skills, interests });
+      updateProfileState({ display_name: displayName, username: newUsername, bio, skills, interests, social_links: socialLinks });
       toast.success("Profile updated");
       setEditing(false);
       void refreshProfile();
@@ -170,6 +172,83 @@ export default function ProfilePage() {
                readOnly={!editing} 
              />
           </div>
+
+          <div className="mt-8 border-t border-border/50 pt-6">
+            <div className="flex items-center justify-between mb-4">
+              <label className="text-[10px] uppercase font-bold text-muted-foreground ml-1">Connect</label>
+              {editing && (
+                <button 
+                  onClick={() => setSocialLinks([...socialLinks, { platform: "website", url: "", username: "" }])}
+                  className="text-[10px] font-bold text-primary hover:underline flex items-center gap-1"
+                >
+                  <Plus className="h-3 w-3" /> Add Link
+                </button>
+              )}
+            </div>
+
+            {editing ? (
+              <div className="space-y-3">
+                {socialLinks.map((link, i) => (
+                  <div key={i} className="flex gap-2 items-center">
+                    <select 
+                      value={link.platform} 
+                      onChange={(e) => {
+                        const next = [...socialLinks];
+                        next[i].platform = e.target.value;
+                        setSocialLinks(next);
+                      }}
+                      className="h-9 px-2 rounded-xl bg-[hsl(var(--surface-2))] border-none text-xs outline-none focus:ring-2 ring-primary/50"
+                    >
+                      <option value="linkedin">LinkedIn</option>
+                      <option value="github">GitHub</option>
+                      <option value="twitter">X (Twitter)</option>
+                      <option value="spotify">Spotify</option>
+                      <option value="steam">Steam</option>
+                      <option value="discord">Discord</option>
+                      <option value="website">Website</option>
+                    </select>
+                    <input 
+                      placeholder="Username or URL"
+                      value={link.username || link.url}
+                      onChange={(e) => {
+                        const next = [...socialLinks];
+                        const val = e.target.value;
+                        next[i].username = val;
+                        next[i].url = val.startsWith("http") ? val : `https://${link.platform}.com/${val}`;
+                        setSocialLinks(next);
+                      }}
+                      className="flex-1 h-9 px-3 rounded-xl bg-[hsl(var(--surface-2))] border-none text-xs outline-none focus:ring-2 ring-primary/50"
+                    />
+                    <button 
+                      onClick={() => setSocialLinks(socialLinks.filter((_, idx) => idx !== i))}
+                      className="h-9 w-9 rounded-xl bg-destructive/10 text-destructive grid place-items-center hover:bg-destructive/20 transition-colors"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="flex flex-wrap gap-3">
+                {socialLinks.length === 0 ? (
+                  <span className="text-sm text-muted-foreground italic">No social links added yet.</span>
+                ) : (
+                  socialLinks.map((link, i) => (
+                    <a 
+                      key={i} 
+                      href={link.url} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-2 px-3 py-2 rounded-xl bg-[hsl(var(--surface-2))] border border-transparent hover:border-primary/30 transition-all hover:scale-105 group"
+                    >
+                      <SocialIcon platform={link.platform} />
+                      <span className="text-xs font-bold">{link.username || "Link"}</span>
+                    </a>
+                  ))
+                )}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -218,4 +297,16 @@ function StatCard({ label, value, color, icon }: { label: string; value: number;
       </div>
     </div>
   );
+}
+
+function SocialIcon({ platform }: { platform: string }) {
+  switch (platform) {
+    case "linkedin": return <Linkedin className="h-4 w-4 text-blue-400" />;
+    case "github": return <Github className="h-4 w-4" />;
+    case "twitter": return <Twitter className="h-4 w-4 text-sky-400" />;
+    case "spotify": return <Music className="h-4 w-4 text-emerald-400" />;
+    case "steam": return <Monitor className="h-4 w-4 text-blue-500" />;
+    case "discord": return <MessageCircle className="h-4 w-4 text-indigo-400" />;
+    default: return <Globe className="h-4 w-4 text-muted-foreground" />;
+  }
 }

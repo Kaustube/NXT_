@@ -18,6 +18,7 @@ export type UserProfile = {
   bio: string | null;
   skills: string[];
   interests: string[];
+  social_links: Array<{ platform: string; url: string; username: string }>;
   profile_visibility: "public" | "private";
   public_key: string | null;
   account_type: 'student' | 'professor' | 'company' | 'admin';
@@ -54,7 +55,7 @@ async function loadProfile(uid: string, metadata?: any): Promise<UserProfile | n
     // Add cache buster query param via a fake filter or just relying on maybeSingle
     const { data: p, error } = await (supabase
       .from("profiles") as any)
-      .select("user_id, display_name, username, email, avatar_url, college_id, roll_number, bio, skills, interests, profile_visibility, public_key, account_type, company_name, company_approved")
+      .select("user_id, display_name, username, email, avatar_url, college_id, roll_number, bio, skills, interests, social_links, profile_visibility, public_key, account_type, company_name, company_approved")
       .eq("user_id", uid)
       .maybeSingle();
 
@@ -63,7 +64,7 @@ async function loadProfile(uid: string, metadata?: any): Promise<UserProfile | n
         return {
           user_id: uid, display_name: metadata.display_name || "", username: metadata.username || "user",
           email: "", avatar_url: null, college_id: metadata.college_id || null, college_name: null, college_short_code: null,
-          roll_number: metadata.roll_number || null, bio: null, skills: [], interests: [], profile_visibility: "public",
+          roll_number: metadata.roll_number || null, bio: null, skills: [], interests: [], social_links: [], profile_visibility: "public",
           public_key: null, account_type: metadata.account_type || "student", company_name: metadata.company_name || null, company_approved: false,
         };
       }
@@ -82,6 +83,7 @@ async function loadProfile(uid: string, metadata?: any): Promise<UserProfile | n
       user_id: p.user_id, display_name: p.display_name ?? "", username: p.username ?? "", email: p.email ?? "",
       avatar_url: p.avatar_url ?? null, college_id: p.college_id ?? null, college_name, college_short_code,
       roll_number: p.roll_number ?? null, bio: p.bio ?? null, skills: p.skills ?? [], interests: p.interests ?? [],
+      social_links: p.social_links ?? [],
       profile_visibility: p.profile_visibility ?? "public", public_key: p.public_key ?? null,
       account_type: p.account_type ?? 'student', company_name: p.company_name ?? null, company_approved: p.company_approved ?? false,
     };
