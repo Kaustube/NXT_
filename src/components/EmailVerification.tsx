@@ -37,29 +37,91 @@ export function EmailVerificationBanner() {
   );
 }
 
-async function requestVerificationEmail(): Promise<{ ok: boolean; error: string | null }> {
-  const { data, error } = await supabase.functions.invoke("send-verification-email", {
-    method: "POST",
-    body: {},
+const SEND_CODE_TIMEOUT_MS = 28_000;
+
+function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const t = setTimeout(() => reject(new Error(label)), ms);
+    promise.then(
+      (v) => {
+        clearTimeout(t);
+        resolve(v);
+      },
+      (e) => {
+        clearTimeout(t);
+        reject(e);
+      },
+    );
   });
+}
 
-  if (error) {
-    if (error instanceof FunctionsHttpError) {
-      try {
-        const errJson = (await error.context.json()) as { error?: string };
-        if (typeof errJson?.error === "string") {
-          return { ok: false, error: errJson.error };
-        }
-      } catch {
-        /* fall through */
-      }
+async function parseFunctionsErrorBody(err: FunctionsHttpError): Promise<string | null> {
+  try {
+    const text = await withTimeout(
+      err.context.text(),
+      4000,
+      "body-timeout",
+    ).catch(() => null);
+    if (!text) return null;
+    try {
+      const j = JSON.parse(text) as { error?: string };
+      return typeof j?.error === "string" ? j.error : null;
+    } catch {
+      return text.slice(0, 500);
     }
-    return { ok: false, error: error.message };
+  } catch {
+    return null;
   }
+}
 
-  const errMsg = (data as { error?: string } | null)?.error;
-  if (errMsg) return { ok: false, error: errMsg };
-  return { ok: true, error: null };
+async function requestVerificationEmail(): Promise<{ ok: boolean; error: string | null }> {
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.access_token) {
+      return { ok: false, error: "Your session expired. Sign in again from the auth page." };
+    }
+
+    const invokePromise = supabase.functions.invoke("send-verification-email", {
+      method: "POST",
+      body: {},
+      headers: { Authorization: `Bearer ${session.access_token}` },
+    });
+
+    const { data, error } = await withTimeout(
+      invokePromise,
+      SEND_CODE_TIMEOUT_MS,
+      "invoke-timeout",
+    );
+    if (error) {
+      if (error instanceof FunctionsHttpError) {
+        const fromBody = await parseFunctionsErrorBody(error);
+        if (fromBody) return { ok: false, error: fromBody };
+      }
+      return { ok: false, error: error.message };
+    }
+
+    const errMsg = (data as { error?: string } | null)?.error;
+    if (errMsg) return { ok: false, error: errMsg };
+    return { ok: true, error: null };
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : String(e);
+    if (msg === "invoke-timeout") {
+      return {
+        ok: false,
+        error:
+          "Email request timed out. Deploy the Edge Function: `supabase functions deploy send-verification-email`, set secrets RESEND_API_KEY + SUPABASE_* on the project, and confirm your network allows calls to *.supabase.co.",
+      };
+    }
+    if (msg === "body-timeout") {
+      return { ok: false, error: "Could not read the full error from the server (slow response)." };
+    }
+    return {
+      ok: false,
+      error:
+        msg ||
+        "Could not reach the verification service. If the function is not deployed yet, run `supabase functions deploy send-verification-email` and add RESEND_API_KEY in Supabase → Edge Functions → Secrets.",
+    };
+  }
 }
 
 export function EmailVerificationPage() {
@@ -88,14 +150,17 @@ export function EmailVerificationPage() {
     async (isManual: boolean) => {
       if (!user) return;
       setSending(true);
-      const { ok, error } = await requestVerificationEmail();
-      setSending(false);
-      if (!ok) {
-        if (error) toast.error(error, { duration: isManual ? 10_000 : 12_000 });
-        return;
+      try {
+        const { ok, error } = await requestVerificationEmail();
+        if (!ok) {
+          if (error) toast.error(error, { duration: isManual ? 10_000 : 12_000 });
+          return;
+        }
+        toast.success("Verification code sent. Check your inbox (and spam).");
+        setResendCooldown(60);
+      } finally {
+        setSending(false);
       }
-      toast.success("Verification code sent. Check your inbox (and spam).");
-      setResendCooldown(60);
     },
     [user],
   );
