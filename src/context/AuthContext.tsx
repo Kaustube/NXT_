@@ -87,16 +87,14 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 async function loadProfile(uid: string): Promise<UserProfile | null> {
   try {
-    // Single query with join — one round trip instead of two
     const { data: p, error } = await (supabase
       .from("profiles") as any)
-      .select("user_id, display_name, username, email, avatar_url, college_id, roll_number, bio, skills, interests, profile_visibility, public_key")
+      .select("user_id, display_name, username, email, avatar_url, college_id, roll_number, bio, skills, interests, profile_visibility, public_key, account_type, company_name, company_approved")
       .eq("user_id", uid)
       .maybeSingle();
 
     if (error || !p) return null;
 
-    // Fetch college in parallel — don't block on it
     let college_name: string | null = null;
     let college_short_code: string | null = null;
     if (p.college_id) {
@@ -124,10 +122,9 @@ async function loadProfile(uid: string): Promise<UserProfile | null> {
       interests: p.interests ?? [],
       profile_visibility: p.profile_visibility ?? "public",
       public_key: p.public_key ?? null,
-      // These columns may not exist yet — safe defaults
-      account_type: (p as any).account_type ?? 'student',
-      company_name: (p as any).company_name ?? null,
-      company_approved: (p as any).company_approved ?? false,
+      account_type: p.account_type ?? 'student',
+      company_name: p.company_name ?? null,
+      company_approved: p.company_approved ?? false,
     };
   } catch {
     return null;
@@ -156,7 +153,6 @@ async function checkUserRoles(uid: string): Promise<{
     const rows = (rolesData ?? []) as any[];
     const roles = rows.map((r: any) => r.role as UserRole);
 
-    // Find admin level
     const adminRow = rows.find((r: any) => r.role === 'admin');
     const adminLevel = (adminRow?.admin_level as AdminLevel) ?? null;
 
@@ -232,10 +228,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
-    let done = false;
     const timeout = setTimeout(() => {
-      if (!done) { done = true; setLoading(false); }
-    }, 3000);
+      setLoading(false);
+    }, 4000);
 
     const { data: sub } = supabase.auth.onAuthStateChange(async (event, s) => {
       if (event === 'SIGNED_OUT') {
@@ -243,26 +238,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setRoles(['member']); setIsAdmin(false); setIsSuperAdmin(false);
         setIsProfessor(false); setIsCompany(false); setIsCollegeAdmin(false);
         setIsFinanceAdmin(false); setAdminLevel(null); setEmailVerified(false);
+        setLoading(false);
         return;
       }
-      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION') {
+      
+      if (s?.user) {
         setSession(s);
-        setUser(s?.user ?? null);
-        if (s?.user) {
-          const [roleData, profileData] = await Promise.all([
-            checkUserRoles(s.user.id),
-            loadProfile(s.user.id),
-          ]);
-          applyRoles(roleData);
-          setProfile(profileData);
-        }
+        setUser(s.user);
+        const [roleData, profileData] = await Promise.all([
+          checkUserRoles(s.user.id),
+          loadProfile(s.user.id),
+        ]);
+        applyRoles(roleData);
+        setProfile(profileData);
+        setLoading(false);
+        clearTimeout(timeout);
+      } else {
+        setLoading(false);
+        clearTimeout(timeout);
       }
     });
 
     supabase.auth.getSession().then(async ({ data: { session: s } }) => {
-      setSession(s);
-      setUser(s?.user ?? null);
       if (s?.user) {
+        setSession(s);
+        setUser(s.user);
         const [roleData, profileData] = await Promise.all([
           checkUserRoles(s.user.id),
           loadProfile(s.user.id),
@@ -270,9 +270,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         applyRoles(roleData);
         setProfile(profileData);
       }
-      if (!done) { done = true; clearTimeout(timeout); setLoading(false); }
+      setLoading(false);
+      clearTimeout(timeout);
     }).catch(() => {
-      if (!done) { done = true; clearTimeout(timeout); setLoading(false); }
+      setLoading(false);
+      clearTimeout(timeout);
     });
 
     return () => { clearTimeout(timeout); sub.subscription.unsubscribe(); };
@@ -281,8 +283,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signIn: AuthContextType["signIn"] = async (email, password) => {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) return { error: error.message };
+    
+    // Refresh explicitly after sign in
     const { data: { session: s } } = await supabase.auth.getSession();
     if (s?.user) {
+      setUser(s.user);
+      setSession(s);
       const [roleData, profileData] = await Promise.all([
         checkUserRoles(s.user.id),
         loadProfile(s.user.id),

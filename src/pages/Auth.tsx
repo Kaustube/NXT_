@@ -112,7 +112,7 @@ export default function Auth() {
       return;
     }
     toast.success("Account created. Welcome to NXT.");
-    navigate("/dashboard");
+    navigate("/verify-email");
   }
 
   // ── Forgot: Step 1 — send OTP ──────────────────────────────────────────────
@@ -244,7 +244,7 @@ export default function Auth() {
 
       {/* Right form panel */}
       <div className="flex flex-col justify-center px-6 py-10 lg:px-16 overflow-auto">
-        <div className="w-full max-w-sm mx-auto">
+        <div className="w-full max-sm mx-auto">
           {/* Mobile logo */}
           <Link to="/" className="lg:hidden flex items-center gap-2 mb-8 hover:opacity-80 transition-opacity">
             <div className="h-7 w-7 rounded-md bg-primary text-primary-foreground grid place-items-center font-semibold">N</div>
