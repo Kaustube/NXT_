@@ -37,7 +37,7 @@ export function EmailVerificationBanner() {
   );
 }
 
-const SEND_CODE_TIMEOUT_MS = 28_000;
+const SEND_CODE_TIMEOUT_MS = 8_000; // Reduced from 28s to 8s
 
 function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
   return new Promise((resolve, reject) => {
@@ -64,10 +64,10 @@ async function parseFunctionsErrorBody(err: FunctionsHttpError): Promise<string 
     ).catch(() => null);
     if (!text) return null;
     try {
-      const j = JSON.parse(text) as { error?: string };
+      const j = JSON.parse(text as string) as { error?: string };
       return typeof j?.error === "string" ? j.error : null;
     } catch {
-      return text.slice(0, 500);
+      return (text as string).slice(0, 500);
     }
   } catch {
     return null;
@@ -108,8 +108,7 @@ async function requestVerificationEmail(): Promise<{ ok: boolean; error: string 
     if (msg === "invoke-timeout") {
       return {
         ok: false,
-        error:
-          "Email request timed out. Deploy the Edge Function: `supabase functions deploy send-verification-email`, set secrets RESEND_API_KEY + SUPABASE_* on the project, and confirm your network allows calls to *.supabase.co.",
+        error: "Email request timed out. Local Edge Functions might not be running.",
       };
     }
     if (msg === "body-timeout") {
@@ -117,9 +116,7 @@ async function requestVerificationEmail(): Promise<{ ok: boolean; error: string 
     }
     return {
       ok: false,
-      error:
-        msg ||
-        "Could not reach the verification service. If the function is not deployed yet, run `supabase functions deploy send-verification-email` and add RESEND_API_KEY in Supabase → Edge Functions → Secrets.",
+      error: msg || "Could not reach the verification service.",
     };
   }
 }
@@ -181,7 +178,7 @@ export function EmailVerificationPage() {
 
     setLoading(true);
     try {
-      const { data, error } = await supabase.rpc("verify_email_code", {
+      const { data, error } = await (supabase.rpc as any)("verify_email_code", {
         p_user_id: user.id,
         p_code: codeStr,
       });
@@ -303,11 +300,37 @@ export function EmailVerificationPage() {
                   ? `Resend code in ${resendCooldown}s`
                   : "Resend code"}
             </Button>
+            
+            {import.meta.env.DEV && (
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={async () => {
+                  if (!user) return;
+                  setLoading(true);
+                  try {
+                    await supabase.from("profiles").update({
+                      email_verified: true,
+                      email_verified_at: new Date().toISOString()
+                    } as any).eq("user_id", user.id);
+                    toast.success("Bypassed verification (Dev Mode)");
+                    setVerified(true);
+                    await refreshRoles();
+                  } catch (e: unknown) {
+                    toast.error(e instanceof Error ? e.message : String(e));
+                  } finally {
+                    setLoading(false);
+                  }
+                }}
+                className="w-full mt-2"
+              >
+                Bypass Verification (Dev Mode)
+              </Button>
+            )}
+
             {resendCooldown === 0 && (
-              <p className="text-xs text-muted-foreground text-center">
-                Didn&apos;t get an email? Check spam, then configure{" "}
-                <span className="font-mono text-[11px]">RESEND_API_KEY</span> on the{" "}
-                <span className="font-mono text-[11px]">send-verification-email</span> Edge Function if needed.
+              <p className="text-xs text-muted-foreground text-center mt-2">
+                Didn&apos;t get an email? If you&apos;re running locally without an Edge Function, use the dev bypass above.
               </p>
             )}
           </div>
