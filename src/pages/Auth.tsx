@@ -452,15 +452,7 @@ export default function Auth() {
                 New here? Create an account
               </button>
 
-              <div className="mt-6 pt-4 border-t border-border">
-                <Link to="/admin"
-                  className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors">
-                  <span className="h-5 w-5 rounded bg-destructive/20 text-destructive grid place-items-center">
-                    <ShieldCheck className="h-3 w-3" />
-                  </span>
-                  Admin panel
-                </Link>
-              </div>
+
             </>
           )}
 
@@ -544,15 +536,7 @@ export default function Auth() {
                 Already have an account? Sign in
               </button>
 
-              <div className="mt-6 pt-4 border-t border-border">
-                <Link to="/admin"
-                  className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors">
-                  <span className="h-5 w-5 rounded bg-destructive/20 text-destructive grid place-items-center">
-                    <ShieldCheck className="h-3 w-3" />
-                  </span>
-                  Admin panel
-                </Link>
-              </div>
+
             </>
           )}
         </div>
