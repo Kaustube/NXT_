@@ -106,13 +106,13 @@ export default function Auth() {
     }
     if (!session) {
       toast.error(
-        "No active session after sign-up. In Supabase Dashboard → Authentication → Providers → Email: turn off “Confirm email” so users get a session immediately and receive the 6-digit app code (configure Resend for the Edge Function). If Confirm email stays on, users must use the Supabase confirmation link instead.",
+        "No active session after sign-up. Check Supabase email auth settings and try signing in once manually if the account was created.",
         { duration: 14_000 },
       );
       return;
     }
-    toast.success("Account created. Enter the code we email you to finish setup.");
-    navigate("/verify-email");
+    toast.success("Account created. Welcome to NXT.");
+    navigate("/dashboard");
   }
 
   // ── Forgot: Step 1 — send OTP ──────────────────────────────────────────────

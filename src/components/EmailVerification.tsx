@@ -126,6 +126,9 @@ export function EmailVerificationPage() {
   const [code, setCode] = useState(["", "", "", "", "", ""]);
   const [loading, setLoading] = useState(false);
   const [sending, setSending] = useState(false);
+  const [sendAttempted, setSendAttempted] = useState(false);
+  const [sendSucceeded, setSendSucceeded] = useState(false);
+  const [sendError, setSendError] = useState<string | null>(null);
   const [resendCooldown, setResendCooldown] = useState(0);
   const [verified, setVerified] = useState(false);
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
@@ -147,12 +150,19 @@ export function EmailVerificationPage() {
     async (isManual: boolean) => {
       if (!user) return;
       setSending(true);
+      setSendAttempted(true);
+      setSendError(null);
       try {
         const { ok, error } = await requestVerificationEmail();
         if (!ok) {
+          setSendSucceeded(false);
+          setResendCooldown(0);
+          setSendError(error ?? "Could not send the verification code.");
           if (error) toast.error(error, { duration: isManual ? 10_000 : 12_000 });
           return;
         }
+        setSendSucceeded(true);
+        setSendError(null);
         toast.success("Verification code sent. Check your inbox (and spam).");
         setResendCooldown(60);
       } finally {
@@ -253,12 +263,22 @@ export function EmailVerificationPage() {
           </div>
           <h1 className="text-2xl font-bold mb-2">Verify your email</h1>
           <p className="text-muted-foreground text-sm">
-            We sent a <span className="font-medium text-foreground">6-digit code</span> to{" "}
-            <span className="font-medium text-foreground">{user?.email}</span>. Enter it below to continue.
+            {sending
+              ? <>We&apos;re sending a <span className="font-medium text-foreground">6-digit code</span> to <span className="font-medium text-foreground">{user?.email}</span>.</>
+              : sendSucceeded
+                ? <>We sent a <span className="font-medium text-foreground">6-digit code</span> to <span className="font-medium text-foreground">{user?.email}</span>. Enter it below to continue.</>
+                : <>Send a <span className="font-medium text-foreground">6-digit code</span> to <span className="font-medium text-foreground">{user?.email}</span> to continue.</>}
           </p>
         </div>
 
         <div className="space-y-5">
+          {sendError && (
+            <div className="rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-left">
+              <div className="font-medium text-destructive">Couldn&apos;t send verification email</div>
+              <div className="text-muted-foreground mt-1">{sendError}</div>
+            </div>
+          )}
+
           <div className="flex gap-2 justify-center" onPaste={handlePaste}>
             {code.map((digit, i) => (
               <input
@@ -298,7 +318,9 @@ export function EmailVerificationPage() {
                 ? "Sending…"
                 : resendCooldown > 0
                   ? `Resend code in ${resendCooldown}s`
-                  : "Resend code"}
+                  : sendSucceeded || sendAttempted
+                    ? "Resend code"
+                    : "Send code"}
             </Button>
             
             {import.meta.env.DEV && (
@@ -330,7 +352,7 @@ export function EmailVerificationPage() {
 
             {resendCooldown === 0 && (
               <p className="text-xs text-muted-foreground text-center mt-2">
-                Didn&apos;t get an email? If you&apos;re running locally without an Edge Function, use the dev bypass above.
+                Didn&apos;t get an email? Check spam first. If sending fails, verify `RESEND_API_KEY` and `RESEND_FROM_EMAIL` on the `send-verification-email` Edge Function.
               </p>
             )}
           </div>

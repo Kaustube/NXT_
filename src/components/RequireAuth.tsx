@@ -35,27 +35,21 @@ function LoadingScreen() {
 }
 
 export function RequireAuth() {
-  const { user, loading, emailVerified } = useAuth();
+  const { user, loading } = useAuth();
   const location = useLocation();
 
   if (loading) return <LoadingScreen />;
   if (!user) return <Navigate to="/auth" replace state={{ from: location }} />;
-
-  const onVerifyRoute = location.pathname === "/verify-email";
-  if (!emailVerified && !onVerifyRoute) {
-    return <Navigate to="/verify-email" replace state={{ from: location }} />;
-  }
 
   return <Outlet />;
 }
 
 export function RequireAdmin() {
-  const { user, isAdmin, loading, emailVerified } = useAuth();
+  const { user, isAdmin, loading } = useAuth();
   const location = useLocation();
 
   if (loading) return <LoadingScreen />;
   if (!user) return <Navigate to="/auth" replace state={{ from: location }} />;
-  if (!emailVerified) return <Navigate to="/verify-email" replace />;
 
   if (!isAdmin) {
     return (
@@ -83,9 +77,8 @@ export function RequireAdmin() {
 }
 
 export function RedirectIfAuthed({ children }: { children: JSX.Element }) {
-  const { user, loading, emailVerified } = useAuth();
+  const { user, loading } = useAuth();
   if (loading) return <LoadingScreen />;
-  if (user && !emailVerified) return <Navigate to="/verify-email" replace />;
   if (user) return <Navigate to="/dashboard" replace />;
   return children;
 }
