@@ -1,5 +1,5 @@
 import { QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Route, Routes, Navigate } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -33,7 +33,6 @@ import PlacementDashboard from "./pages/PlacementDashboard";
 import Languages from "./pages/Languages";
 import Help from "./pages/Help";
 import CampusServices from "./pages/CampusServices";
-import { EmailVerificationPage } from "@/components/EmailVerification";
 import NotFound from "./pages/NotFound";
 import AdminOverview from "./pages/admin/Overview";
 import AdminUsers from "./pages/admin/AdminUsers";
@@ -59,9 +58,9 @@ const App = () => (
             <Routes>
               <Route path="/" element={<RedirectIfAuthed><Landing /></RedirectIfAuthed>} />
               <Route path="/auth" element={<RedirectIfAuthed><Auth /></RedirectIfAuthed>} />
-              <Route path="/verify-email" element={<RequireAuth />}>
-                <Route index element={<EmailVerificationPage />} />
-              </Route>
+              
+              {/* Redirect old verification route to dashboard */}
+              <Route path="/verify-email" element={<Navigate to="/dashboard" replace />} />
 
               {/* Main app */}
               <Route element={<RequireAuth />}>
