@@ -80,16 +80,7 @@ export default function AdminSports() {
     setColleges(map);
   }
 
-  async function loadVenues() {
-    setVenuesLoading(true);
-    let q = (supabase as any).from("sports_venues").select("*").order("created_at", { ascending: false });
-    if (venueFilter === "pending") q = q.eq("is_approved", false);
-    else if (venueFilter === "approved") q = q.eq("is_approved", true);
-    const { data, error } = await q;
-    if (error) { toast.error(error.message); setVenuesLoading(false); return; }
-    setVenues((data ?? []) as Venue[]);
-    setVenuesLoading(false);
-  }
+
 
   async function loadSlots(venueId: string) {
     const { data } = await (supabase as any)
@@ -175,7 +166,7 @@ export default function AdminSports() {
   const byCourt: Record<string, Booking[]> = {};
   filteredBookings.forEach(b => { if (!byCourt[b.court_name]) byCourt[b.court_name] = []; byCourt[b.court_name].push(b); });
 
-  const pendingCount = venues.filter(v => v.is_approved === false).length;
+  const pendingCount = venues.filter(v => v.is_approved === null).length;
 
   return (
     <div className="p-6 max-w-5xl mx-auto space-y-5">
@@ -184,13 +175,20 @@ export default function AdminSports() {
           <h1 className="text-2xl font-bold">Sports Management</h1>
           <p className="text-muted-foreground text-sm mt-1">Venues, slots, and bookings</p>
         </div>
-        {pendingCount > 0 && (
-          <span className="h-8 px-3 rounded-full bg-yellow-500/10 text-yellow-500 border border-yellow-500/20 text-sm font-bold flex items-center gap-1.5">
-            {pendingCount} venue{pendingCount !== 1 ? "s" : ""} pending
-          </span>
-        )}
+        <div className="flex items-center gap-2">
+          <button 
+            onClick={seedDemoData}
+            className="h-8 px-3 rounded-lg border border-primary/30 text-primary text-xs font-bold hover:bg-primary/5 transition-all flex items-center gap-1.5"
+          >
+            <Plus className="h-3.5 w-3.5" /> Seed Demo
+          </button>
+          {pendingCount > 0 && (
+            <span className="h-8 px-3 rounded-full bg-yellow-500/10 text-yellow-500 border border-yellow-500/20 text-sm font-bold flex items-center gap-1.5">
+              {pendingCount} pending
+            </span>
+          )}
+        </div>
       </div>
-
       {/* Top tabs */}
       <div className="flex gap-2 border-b border-border/50">
         {(["venues", "bookings"] as const).map(t => (
@@ -236,9 +234,7 @@ export default function AdminSports() {
                         <div className="flex items-center gap-2 flex-wrap">
                           <span className="font-semibold text-sm">{venue.name}</span>
                           <span className="text-xs capitalize px-2 py-0.5 rounded-full bg-[hsl(var(--surface-3))] text-muted-foreground">{venue.sport}</span>
-                          <span className={`text-xs px-2 py-0.5 rounded-full font-bold border ${venue.is_approved === true ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20" : venue.is_approved === false ? "bg-yellow-500/10 text-yellow-500 border-yellow-500/20" : "bg-[hsl(var(--surface-3))] text-muted-foreground border-border"}`}>
-                            {venue.is_approved === true ? "Live" : venue.is_approved === false ? "Pending" : "Unknown"}
-                          </span>
+
                         </div>
                         <div className="flex items-center gap-1.5 mt-1 text-xs text-muted-foreground">
                           {venue.college_id
