@@ -9,37 +9,7 @@ type Streak = { current_streak: number; longest_streak: number; total_days_activ
 type Stats = { connections: number; messages: number; events: number; submissions: number; };
 
 export default function ProfilePage() {
-  const { user, profile: ctxProfile, refreshProfile, updateProfileState } = useAuth();
-  const [p, setP] = useState<Profile | null>(null);
-  const [collegeName, setCollegeName] = useState<string | null>(null);
-  const [editing, setEditing] = useState(false);
-  const [bio, setBio] = useState("");
-  const [displayName, setDisplayName] = useState("");
-  const [skills, setSkills] = useState<string[]>([]);
-  const [interests, setInterests] = useState<string[]>([]);
-  const [streak, setStreak] = useState<Streak | null>(null);
-  const [stats, setStats] = useState<Stats>({ connections: 0, messages: 0, events: 0, submissions: 0 });
-  const [avatarUploading, setAvatarUploading] = useState(false);
-  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
-  const [profileVisibility, setProfileVisibility] = useState<"public" | "private">("public");
-  const [username, setUsername] = useState("");
-  const [socialLinks, setSocialLinks] = useState<Array<{ platform: string; url: string; username: string }>>([]);
-  const fileRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
-    if (ctxProfile && !p) {
-      setP(ctxProfile as any);
-      setBio(ctxProfile.bio ?? "");
-      setDisplayName(ctxProfile.display_name);
-      setUsername(ctxProfile.username ?? "");
-      setSkills(ctxProfile.skills ?? []);
-      setInterests(ctxProfile.interests ?? []);
-      setAvatarUrl(ctxProfile.avatar_url);
-      setProfileVisibility(ctxProfile.profile_visibility ?? "public");
-      setCollegeName(ctxProfile.college_name);
-      setSocialLinks(ctxProfile.social_links ?? []);
-    }
-  }, [ctxProfile]);
 
   useEffect(() => {
     if (!user) return;
@@ -122,7 +92,7 @@ export default function ProfilePage() {
     }
   }
 
-  if (!p) return <div className="p-10 text-center animate-pulse">Loading profile…</div>;
+  if (!ctxProfile) return <div className="p-10 text-center animate-pulse">Loading profile…</div>;
 
   return (
     <div className="p-4 md:p-6 max-w-4xl mx-auto space-y-6">
@@ -132,7 +102,7 @@ export default function ProfilePage() {
           <div className="flex items-end justify-between -mt-12 mb-6">
             <div className="relative group">
               <div className="h-28 w-28 rounded-2xl border-4 border-background bg-[hsl(var(--surface-3))] overflow-hidden shadow-2xl">
-                {avatarUrl ? <img src={avatarUrl} className="h-full w-full object-cover" /> : <div className="h-full w-full grid place-items-center text-4xl font-bold">{p.display_name[0]}</div>}
+                {avatarUrl ? <img src={avatarUrl} className="h-full w-full object-cover" /> : <div className="h-full w-full grid place-items-center text-4xl font-bold">{ctxProfile.display_name[0]}</div>}
               </div>
               <button onClick={() => fileRef.current?.click()} className="absolute inset-0 rounded-2xl bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
                 <Camera className="h-6 w-6 text-white" />
@@ -191,16 +161,16 @@ export default function ProfilePage() {
               </div>
             ) : (
               <>
-                <h1 className="text-3xl font-bold tracking-tight">{p.display_name}</h1>
-                <div className="text-sm font-medium text-primary">@{p.username}</div>
+                <h1 className="text-3xl font-bold tracking-tight">{ctxProfile.display_name}</h1>
+                <div className="text-sm font-medium text-primary">@{ctxProfile.username}</div>
               </>
             )}
           </div>
 
           <div className="mt-4 flex flex-wrap gap-4 text-sm text-muted-foreground">
             {collegeName && <span className="flex items-center gap-1.5"><GraduationCap className="h-4 w-4" /> {collegeName}</span>}
-            {p.roll_number && <span className="flex items-center gap-1.5"><Hash className="h-4 w-4" /> {p.roll_number}</span>}
-            <span className="flex items-center gap-1.5"><Calendar className="h-4 w-4" /> Joined {format(new Date(), "MMM yyyy")}</span>
+            {ctxProfile.roll_number && <span className="flex items-center gap-1.5"><Hash className="h-4 w-4" /> {ctxProfile.roll_number}</span>}
+            <span className="flex items-center gap-1.5"><Calendar className="h-4 w-4" /> Joined {format(new Date(ctxProfile.created_at || new Date()), "MMM yyyy")}</span>
           </div>
 
           <div className="mt-6">

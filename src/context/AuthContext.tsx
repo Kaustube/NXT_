@@ -25,6 +25,7 @@ export type UserProfile = {
   account_type: 'student' | 'professor' | 'company' | 'admin';
   company_name: string | null;
   company_approved: boolean;
+  created_at: string | null;
 };
 
 type AuthContextType = {
@@ -55,7 +56,7 @@ async function loadProfile(uid: string, metadata?: any): Promise<UserProfile | n
   try {
     const { data: p, error } = await (supabase
       .from("profiles") as any)
-      .select("user_id, display_name, username, email, avatar_url, college_id, roll_number, bio, skills, interests, social_links, username_change_count, profile_visibility, public_key, account_type, company_name, company_approved")
+      .select("user_id, display_name, username, email, avatar_url, college_id, roll_number, bio, skills, interests, social_links, username_change_count, profile_visibility, public_key, account_type, company_name, company_approved, created_at")
       .eq("user_id", uid)
       .maybeSingle();
 
@@ -65,7 +66,7 @@ async function loadProfile(uid: string, metadata?: any): Promise<UserProfile | n
           user_id: uid, display_name: metadata.display_name || "", username: metadata.username || "user",
           email: "", avatar_url: null, college_id: metadata.college_id || null, college_name: null, college_short_code: null,
           roll_number: metadata.roll_number || null, bio: null, skills: [], interests: [], social_links: [], username_change_count: 0, profile_visibility: "public",
-          public_key: null, account_type: metadata.account_type || "student", company_name: metadata.company_name || null, company_approved: false,
+          public_key: null, account_type: metadata.account_type || "student", company_name: metadata.company_name || null, company_approved: false, created_at: new Date().toISOString(),
         };
       }
       return null;
@@ -87,6 +88,7 @@ async function loadProfile(uid: string, metadata?: any): Promise<UserProfile | n
       username_change_count: p.username_change_count ?? 0,
       profile_visibility: p.profile_visibility ?? "public", public_key: p.public_key ?? null,
       account_type: p.account_type ?? 'student', company_name: p.company_name ?? null, company_approved: p.company_approved ?? false,
+      created_at: p.created_at ?? null,
     };
   } catch { return null; }
 }
