@@ -2,19 +2,17 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
-import { Send, Lock, ShieldAlert, KeyRound } from "lucide-react";
+import { Send, Lock, ShieldAlert, KeyRound, Paperclip, X, Image } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import {
-  generateKeyPair,
-  storePrivateKey,
-  loadPrivateKey,
-  storePublicKeyCache,
-  loadPublicKeyCache,
-  encryptMessage,
-  decryptMessage,
-  isEncrypted,
+  generateKeyPair, storePrivateKey, loadPrivateKey,
+  storePublicKeyCache, loadPublicKeyCache,
+  encryptMessage, decryptMessage, isEncrypted,
 } from "@/lib/e2e";
+
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB limit
+const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/gif", "image/webp", "application/pdf", "text/plain"];
 
 type Profile = {
   user_id: string;

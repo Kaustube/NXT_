@@ -79,6 +79,7 @@ export default function ProfilePage() {
   const [avatarUploading, setAvatarUploading] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [profileVisibility, setProfileVisibility] = useState<"public" | "private">("public");
+  const [username, setUsername] = useState("");
   const [socialLinks, setSocialLinks] = useState<SocialLink[]>([]);
   const [showSocialPicker, setShowSocialPicker] = useState(false);
   const [selectedPlatform, setSelectedPlatform] = useState<SocialPlatform | null>(null);
@@ -91,6 +92,7 @@ export default function ProfilePage() {
       setP(ctxProfile as any);
       setBio(ctxProfile.bio ?? "");
       setDisplayName(ctxProfile.display_name);
+      setUsername(ctxProfile.username ?? "");
       setSkills(ctxProfile.skills ?? []);
       setInterests(ctxProfile.interests ?? []);
       setAvatarUrl(ctxProfile.avatar_url);
@@ -190,15 +192,24 @@ export default function ProfilePage() {
 
   async function save() {
     if (!user) return;
+    // Validate username
+    if (username.trim().length < 3) {
+      toast.error("Username must be at least 3 characters");
+      return;
+    }
+    if (!/^[a-z0-9_]+$/.test(username.trim())) {
+      toast.error("Username can only contain lowercase letters, numbers, and underscores");
+      return;
+    }
     const { error } = await supabase
       .from("profiles")
-      .update({ bio, skills, interests, display_name: displayName, profile_visibility: profileVisibility, social_links: socialLinks })
+      .update({ bio, skills, interests, display_name: displayName, profile_visibility: profileVisibility, social_links: socialLinks, username: username.trim().toLowerCase() })
       .eq("user_id", user.id);
     if (error) toast.error(error.message);
     else {
       toast.success("Profile updated");
       setEditing(false);
-      setP((prev) => prev ? { ...prev, bio, skills, interests, display_name: displayName } : prev);
+      setP((prev) => prev ? { ...prev, bio, skills, interests, display_name: displayName, username: username.trim().toLowerCase() } : prev);
       void refreshProfile();
     }
   }
@@ -386,7 +397,22 @@ export default function ProfilePage() {
           ) : (
             <h1 className="text-2xl font-bold">{p.display_name}</h1>
           )}
-          <div className="text-sm text-muted-foreground">@{p.username}</div>
+          <div className="text-sm text-muted-foreground">
+            {editing ? (
+              <div className="flex items-center gap-1">
+                <span className="text-muted-foreground">@</span>
+                <input
+                  value={username}
+                  onChange={e => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ""))}
+                  className="bg-transparent border-b border-primary outline-none text-sm w-40"
+                  placeholder="username"
+                  maxLength={30}
+                />
+              </div>
+            ) : (
+              <span>@{p.username}</span>
+            )}
+          </div>
 
           <div className="flex flex-wrap items-center gap-3 mt-3 text-sm text-muted-foreground">
             {collegeName && (

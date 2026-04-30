@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
-import { Hash, Volume2, Send, Users as UsersIcon, UserPlus, MessageSquare, X, Check } from "lucide-react";
+import { Hash, Volume2, Send, Users as UsersIcon, UserPlus, MessageSquare, X, Check, Plus } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
+import VoiceChannel from "@/components/VoiceChannel";
 
 type Server = { id: string; name: string; slug: string; kind: "college" | "global"; description: string | null; college_id: string | null };
 type Channel = { id: string; server_id: string; name: string; type: "text" | "voice"; position: number };
@@ -12,7 +13,7 @@ type Message = { id: string; channel_id: string; author_id: string; content: str
 type ProfileLite = { user_id: string; display_name: string; username: string; avatar_url: string | null };
 
 export default function Servers() {
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
   const navigate = useNavigate();
   const [servers, setServers] = useState<Server[]>([]);
   const [memberships, setMemberships] = useState<Set<string>>(new Set());
@@ -26,6 +27,12 @@ export default function Servers() {
   const [myCollegeId, setMyCollegeId] = useState<string | null>(null);
   const [selectedMember, setSelectedMember] = useState<ProfileLite | null>(null);
   const [myConnections, setMyConnections] = useState<Array<{ requester_id: string; recipient_id: string; status: string; id: string }>>([]);
+  const [inVoice, setInVoice] = useState(false);
+  // Admin: create server
+  const [showCreateServer, setShowCreateServer] = useState(false);
+  const [newServerName, setNewServerName] = useState("");
+  const [newServerKind, setNewServerKind] = useState<"global" | "college">("global");
+  const [creatingServer, setCreatingServer] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   // Load servers + memberships + my college
@@ -180,6 +187,26 @@ export default function Servers() {
     if (error) toast.error(error.message);
   }
 
+  async function createServer() {
+    if (!user || !newServerName.trim()) return;
+    setCreatingServer(true);
+    const slug = newServerName.trim().toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
+    const { error } = await supabase.from("servers").insert({
+      name: newServerName.trim(),
+      slug: `${slug}-${Date.now()}`,
+      kind: newServerKind,
+      description: null,
+    });
+    setCreatingServer(false);
+    if (error) { toast.error(error.message); return; }
+    toast.success(`Server "${newServerName}" created!`);
+    setNewServerName("");
+    setShowCreateServer(false);
+    // Reload servers
+    const { data: s } = await supabase.from("servers").select("*").order("kind").order("name");
+    setServers((s as Server[]) ?? []);
+  }
+
   const collegeServers = useMemo(() => servers.filter((s) => s.kind === "college"), [servers]);
   const globalServers = useMemo(() => servers.filter((s) => s.kind === "global"), [servers]);
   const isMember = activeServer ? memberships.has(activeServer.id) : false;
@@ -203,6 +230,19 @@ export default function Servers() {
         {globalServers.map((s) => (
           <ServerIcon key={s.id} server={s} active={activeServer?.id === s.id} onClick={() => setActiveServer(s)} />
         ))}
+        {/* Admin: create server button */}
+        {isAdmin && (
+          <>
+            <div className="h-px w-8 bg-border my-1" />
+            <button
+              onClick={() => setShowCreateServer(true)}
+              title="Create server"
+              className="h-10 w-10 rounded-md bg-primary/20 text-primary grid place-items-center hover:bg-primary/30 transition-colors"
+            >
+              <Plus className="h-5 w-5" />
+            </button>
+          </>
+        )}
       </div>
 
       {/* Channel sidebar — hidden on mobile unless no active channel */}
@@ -297,26 +337,14 @@ export default function Servers() {
             </div>
           </div>
         ) : activeChannel?.type === "voice" ? (
-          <div className="flex-1 flex flex-col items-center justify-center p-6 text-center animate-in fade-in duration-500">
-            <div className="h-32 w-32 rounded-full bg-[hsl(var(--primary)/0.1)] border border-[hsl(var(--primary)/0.2)] grid place-items-center mb-8 relative">
-               <div className="absolute inset-0 rounded-full animate-ping bg-[hsl(var(--primary)/0.1)] opacity-75"></div>
-               <div className="h-24 w-24 rounded-full bg-[hsl(var(--primary)/0.2)] grid place-items-center z-10 glow-primary shadow-[0_0_30px_hsl(var(--primary)/0.3)]">
-                 <Volume2 className="h-10 w-10 text-primary animate-pulse" />
-               </div>
-            </div>
-            <h2 className="text-3xl font-bold font-display mb-3 text-foreground glow-accent">Connected to {activeChannel.name}</h2>
-            <p className="text-muted-foreground max-w-md text-sm leading-relaxed mb-10">
-              You are currently in a secure voice broadcast. In this demonstration environment, microphone input is mocked to maintain local privacy.
-            </p>
-            <div className="flex gap-4">
-              <button className="h-12 px-8 rounded-full bg-[hsl(var(--surface-2))] border border-border flex items-center justify-center text-sm font-medium hover:bg-[hsl(var(--surface-3))] transition">
-                Mute Microphone
-              </button>
-              <button onClick={() => setActiveChannel(channels.find(c => c.type === 'text') || null)} className="h-12 px-8 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center text-sm font-bold hover:opacity-90 transition shadow-[0_0_15px_hsl(var(--destructive)/0.3)]">
-                Leave Voice
-              </button>
-            </div>
-          </div>
+          <VoiceChannel
+            channelId={activeChannel.id}
+            channelName={activeChannel.name}
+            onLeave={() => {
+              setInVoice(false);
+              setActiveChannel(channels.find(c => c.type === "text") ?? null);
+            }}
+          />
         ) : (
           <>
             <div ref={scrollRef} className="flex-1 overflow-auto px-4 py-4 space-y-4">
@@ -458,6 +486,58 @@ export default function Servers() {
                 className="flex-1 h-9 rounded-lg border border-border text-sm font-medium flex items-center justify-center gap-1.5 hover:bg-[hsl(var(--surface-2))]"
               >
                 <MessageSquare className="h-4 w-4" /> Message
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Admin: Create Server Modal */}
+      {showCreateServer && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setShowCreateServer(false)}>
+          <div className="panel w-full max-w-sm p-6 space-y-4 animate-in fade-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between">
+              <h2 className="font-bold text-lg">Create Server</h2>
+              <button onClick={() => setShowCreateServer(false)} className="text-muted-foreground hover:text-foreground"><X className="h-4 w-4" /></button>
+            </div>
+            <div className="space-y-3">
+              <div>
+                <label className="text-xs text-muted-foreground mb-1.5 block">Server Name *</label>
+                <input
+                  value={newServerName}
+                  onChange={e => setNewServerName(e.target.value)}
+                  onKeyDown={e => { if (e.key === "Enter") createServer(); }}
+                  placeholder="e.g. Study Group, Coding Club"
+                  className="w-full h-10 px-3 rounded-lg bg-[hsl(var(--input))] border border-border text-sm outline-none focus:border-ring"
+                  autoFocus
+                />
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground mb-1.5 block">Type</label>
+                <div className="grid grid-cols-2 gap-2">
+                  {(["global", "college"] as const).map(k => (
+                    <button
+                      key={k}
+                      onClick={() => setNewServerKind(k)}
+                      className={`h-10 rounded-lg border text-sm font-medium transition-colors capitalize ${
+                        newServerKind === k ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      {k === "global" ? "🌐 Global" : "🏫 College"}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+            <div className="flex gap-2 pt-1">
+              <button onClick={() => setShowCreateServer(false)} className="flex-1 h-10 rounded-lg border border-border text-sm hover:bg-[hsl(var(--surface-2))]">Cancel</button>
+              <button
+                onClick={createServer}
+                disabled={creatingServer || !newServerName.trim()}
+                className="flex-1 h-10 rounded-lg bg-primary text-primary-foreground text-sm font-bold flex items-center justify-center gap-2 hover:opacity-90 disabled:opacity-50"
+              >
+                {creatingServer ? <div className="h-4 w-4 border-2 border-current border-t-transparent rounded-full animate-spin" /> : <Plus className="h-4 w-4" />}
+                Create
               </button>
             </div>
           </div>
