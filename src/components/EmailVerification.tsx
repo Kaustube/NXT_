@@ -1,12 +1,14 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
+import { Link } from "react-router-dom";
+import { FunctionsHttpError } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
-import { Mail, RefreshCw, CheckCircle } from "lucide-react";
+import { Mail, CheckCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export function EmailVerificationBanner() {
-  const { user, emailVerified, refreshRoles } = useAuth();
+  const { user, emailVerified } = useAuth();
   const [dismissed, setDismissed] = useState(false);
 
   if (!user || emailVerified || dismissed) return null;
@@ -18,12 +20,13 @@ export function EmailVerificationBanner() {
           <Mail className="h-4 w-4 text-yellow-600 dark:text-yellow-500" />
           <p className="text-sm">
             <span className="font-medium">Email not verified.</span>{" "}
-            <a href="/verify-email" className="underline hover:no-underline">
+            <Link to="/verify-email" className="underline hover:no-underline">
               Verify now
-            </a>
+            </Link>
           </p>
         </div>
         <button
+          type="button"
           onClick={() => setDismissed(true)}
           className="text-sm text-muted-foreground hover:text-foreground"
         >
@@ -34,13 +37,40 @@ export function EmailVerificationBanner() {
   );
 }
 
+async function requestVerificationEmail(): Promise<{ ok: boolean; error: string | null }> {
+  const { data, error } = await supabase.functions.invoke("send-verification-email", {
+    method: "POST",
+    body: {},
+  });
+
+  if (error) {
+    if (error instanceof FunctionsHttpError) {
+      try {
+        const errJson = (await error.context.json()) as { error?: string };
+        if (typeof errJson?.error === "string") {
+          return { ok: false, error: errJson.error };
+        }
+      } catch {
+        /* fall through */
+      }
+    }
+    return { ok: false, error: error.message };
+  }
+
+  const errMsg = (data as { error?: string } | null)?.error;
+  if (errMsg) return { ok: false, error: errMsg };
+  return { ok: true, error: null };
+}
+
 export function EmailVerificationPage() {
   const { user, emailVerified, refreshRoles } = useAuth();
   const [code, setCode] = useState(["", "", "", "", "", ""]);
   const [loading, setLoading] = useState(false);
+  const [sending, setSending] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(0);
   const [verified, setVerified] = useState(false);
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
+  const autoSendTried = useRef(false);
 
   useEffect(() => {
     if (resendCooldown <= 0) return;
@@ -51,30 +81,30 @@ export function EmailVerificationPage() {
   }, [resendCooldown]);
 
   useEffect(() => {
-    if (emailVerified) {
-      setVerified(true);
-    }
+    if (emailVerified) setVerified(true);
   }, [emailVerified]);
 
-  const sendVerificationCode = async () => {
-    if (!user) return;
-    setLoading(true);
-    try {
-      const { data, error } = await supabase.rpc("create_verification_code", {
-        p_user_id: user.id,
-        p_email: user.email,
-      });
-      
-      if (error) throw error;
-      
-      toast.success("Verification code sent to your email!");
+  const sendVerificationCode = useCallback(
+    async (isManual: boolean) => {
+      if (!user) return;
+      setSending(true);
+      const { ok, error } = await requestVerificationEmail();
+      setSending(false);
+      if (!ok) {
+        if (error) toast.error(error, { duration: isManual ? 10_000 : 12_000 });
+        return;
+      }
+      toast.success("Verification code sent. Check your inbox (and spam).");
       setResendCooldown(60);
-    } catch (error: any) {
-      toast.error(error.message || "Failed to send code");
-    } finally {
-      setLoading(false);
-    }
-  };
+    },
+    [user],
+  );
+
+  useEffect(() => {
+    if (!user || emailVerified || autoSendTried.current) return;
+    autoSendTried.current = true;
+    void sendVerificationCode(false);
+  }, [user, emailVerified, sendVerificationCode]);
 
   const verifyCode = async () => {
     if (!user) return;
@@ -92,16 +122,17 @@ export function EmailVerificationPage() {
       });
 
       if (error) throw error;
-      
-      if (data) {
+
+      if (data === true) {
         toast.success("Email verified successfully!");
         setVerified(true);
         await refreshRoles();
       } else {
         toast.error("Invalid or expired code");
       }
-    } catch (error: any) {
-      toast.error(error.message || "Verification failed");
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : "Verification failed";
+      toast.error(msg);
     } finally {
       setLoading(false);
     }
@@ -112,7 +143,7 @@ export function EmailVerificationPage() {
     const newCode = [...code];
     newCode[index] = digit;
     setCode(newCode);
-    
+
     if (digit && index < 5) {
       inputRefs.current[index + 1]?.focus();
     }
@@ -139,12 +170,12 @@ export function EmailVerificationPage() {
           <div className="h-16 w-16 rounded-full bg-green-500/20 text-green-500 flex items-center justify-center mx-auto mb-4">
             <CheckCircle className="h-8 w-8" />
           </div>
-          <h1 className="text-2xl font-bold mb-2">Email Verified!</h1>
+          <h1 className="text-2xl font-bold mb-2">Email verified</h1>
           <p className="text-muted-foreground mb-6">
-            Your email has been successfully verified. You now have full access to all features.
+            You can use the full app now.
           </p>
           <Button asChild>
-            <a href="/">Go to Dashboard</a>
+            <Link to="/dashboard">Go to dashboard</Link>
           </Button>
         </div>
       </div>
@@ -159,72 +190,62 @@ export function EmailVerificationPage() {
             <Mail className="h-7 w-7" />
           </div>
           <h1 className="text-2xl font-bold mb-2">Verify your email</h1>
-          <p className="text-muted-foreground">
-            We'll send a 6-digit code to <span className="font-medium text-foreground">{user?.email}</span>
+          <p className="text-muted-foreground text-sm">
+            We sent a <span className="font-medium text-foreground">6-digit code</span> to{" "}
+            <span className="font-medium text-foreground">{user?.email}</span>. Enter it below to continue.
           </p>
         </div>
 
-        <div className="space-y-6">
-          {resendCooldown === 0 ? (
+        <div className="space-y-5">
+          <div className="flex gap-2 justify-center" onPaste={handlePaste}>
+            {code.map((digit, i) => (
+              <input
+                key={i}
+                ref={(el) => {
+                  inputRefs.current[i] = el;
+                }}
+                type="text"
+                inputMode="numeric"
+                maxLength={1}
+                value={digit}
+                onChange={(e) => handleCodeChange(i, e.target.value)}
+                onKeyDown={(e) => handleKeyDown(i, e)}
+                className="w-12 h-14 text-center text-xl font-bold rounded-lg bg-input border-2 border-border focus:border-primary focus:outline-none transition-colors"
+              />
+            ))}
+          </div>
+
+          <Button
+            type="button"
+            onClick={() => void verifyCode()}
+            disabled={loading || code.join("").length < 6}
+            className="w-full"
+          >
+            {loading ? "Verifying…" : "Verify code"}
+          </Button>
+
+          <div className="flex flex-col gap-2 items-center">
             <Button
-              onClick={sendVerificationCode}
-              disabled={loading}
-              className="w-full"
+              type="button"
               variant="outline"
+              onClick={() => void sendVerificationCode(true)}
+              disabled={sending || resendCooldown > 0}
+              className="w-full"
             >
-              {loading ? "Sending..." : "Send Verification Code"}
+              {sending
+                ? "Sending…"
+                : resendCooldown > 0
+                  ? `Resend code in ${resendCooldown}s`
+                  : "Resend code"}
             </Button>
-          ) : (
-            <>
-              <div className="flex gap-2 justify-center" onPaste={handlePaste}>
-                {code.map((digit, i) => (
-                  <input
-                    key={i}
-                    ref={(el) => {
-                      inputRefs.current[i] = el;
-                    }}
-                    type="text"
-                    inputMode="numeric"
-                    maxLength={1}
-                    value={digit}
-                    onChange={(e) => handleCodeChange(i, e.target.value)}
-                    onKeyDown={(e) => handleKeyDown(i, e)}
-                    className="w-12 h-14 text-center text-xl font-bold rounded-lg bg-input border-2 border-border focus:border-primary focus:outline-none transition-colors"
-                  />
-                ))}
-              </div>
-
-              <Button
-                onClick={verifyCode}
-                disabled={loading || code.join("").length < 6}
-                className="w-full"
-              >
-                {loading ? "Verifying..." : "Verify Code"}
-              </Button>
-
-              <div className="text-center">
-                {resendCooldown > 0 ? (
-                  <p className="text-sm text-muted-foreground">
-                    Resend code in <span className="font-medium text-foreground">{resendCooldown}s</span>
-                  </p>
-                ) : (
-                  <button
-                    onClick={sendVerificationCode}
-                    disabled={loading}
-                    className="text-sm text-primary hover:underline flex items-center gap-1 mx-auto"
-                  >
-                    <RefreshCw className="h-3 w-3" /> Resend code
-                  </button>
-                )}
-              </div>
-            </>
-          )}
-        </div>
-
-        <div className="mt-6 text-center">
-          <a href="/" className="text-sm text-muted-foreground hover:text-foreground">
-            Skip for now
-          </a>
+            {resendCooldown === 0 && (
+              <p className="text-xs text-muted-foreground text-center">
+                Didn&apos;t get an email? Check spam, then configure{" "}
+                <span className="font-mono text-[11px]">RESEND_API_KEY</span> on the{" "}
+                <span className="font-mono text-[11px]">send-verification-email</span> Edge Function if needed.
+              </p>
+            )}
+          </div>
         </div>
       </div>
     </div>

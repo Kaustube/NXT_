@@ -93,18 +93,26 @@ export default function Auth() {
     }
     
     setBusy(true);
-    const { error } = await signUp(email.trim(), password, {
+    const { error, session } = await signUp(email.trim(), password, {
       display_name: displayName.trim(),
       username: username.trim().toLowerCase(),
       roll_number: rollNumber.trim() || undefined,
       college_id: selectedCollege || undefined,
     });
-    if (error) { toast.error(error); setBusy(false); return; }
-    toast.success("Account created! You'll be auto-joined to your college server.");
-    const { error: e2 } = await signIn(email.trim(), password);
     setBusy(false);
-    if (e2) toast.error(e2);
-    else navigate("/dashboard");
+    if (error) {
+      toast.error(error);
+      return;
+    }
+    if (!session) {
+      toast.error(
+        "No active session after sign-up. In Supabase Dashboard → Authentication → Providers → Email: turn off “Confirm email” so users get a session immediately and receive the 6-digit app code (configure Resend for the Edge Function). If Confirm email stays on, users must use the Supabase confirmation link instead.",
+        { duration: 14_000 },
+      );
+      return;
+    }
+    toast.success("Account created. Enter the code we email you to finish setup.");
+    navigate("/verify-email");
   }
 
   // ── Forgot: Step 1 — send OTP ──────────────────────────────────────────────
@@ -537,13 +545,13 @@ export default function Auth() {
               </button>
 
               <div className="mt-6 pt-4 border-t border-border">
-                <a href="/admin"
+                <Link to="/admin"
                   className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors">
                   <span className="h-5 w-5 rounded bg-destructive/20 text-destructive grid place-items-center">
                     <ShieldCheck className="h-3 w-3" />
                   </span>
                   Admin panel
-                </a>
+                </Link>
               </div>
             </>
           )}

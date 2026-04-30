@@ -186,6 +186,10 @@ export default function AdminUsers() {
   }
 
   async function removeAdmin(u: UserRow) {
+    if (u.user_id === currentUser?.id) {
+      toast.error("You can't remove your own admin access here.");
+      return;
+    }
     if (!confirm(`Remove admin access from ${u.display_name}?`)) return;
     await supabase.from("user_roles")
       .delete()

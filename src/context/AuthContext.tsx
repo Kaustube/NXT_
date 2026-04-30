@@ -73,7 +73,7 @@ type AuthContextType = {
       account_type?: 'student' | 'professor' | 'company';
       company_name?: string;
     },
-  ) => Promise<{ error: string | null }>;
+  ) => Promise<{ error: string | null; session: Session | null }>;
   signOut: () => Promise<void>;
   refreshRoles: () => Promise<void>;
   refreshProfile: () => Promise<void>;
@@ -287,14 +287,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signUp: AuthContextType["signUp"] = async (email, password, meta) => {
-    const { error } = await supabase.auth.signUp({
-      email, password,
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
       options: {
-        emailRedirectTo: `${window.location.origin}/dashboard`,
+        emailRedirectTo: `${window.location.origin}/verify-email`,
         data: meta,
       },
     });
-    return { error: error?.message ?? null };
+    if (error) return { error: error.message, session: null };
+    return { error: null, session: data.session ?? null };
   };
 
   const signOut = async () => {
