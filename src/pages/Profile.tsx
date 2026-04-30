@@ -2,11 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
-import {
-  X, Camera, Edit3, GraduationCap, Flame, Trophy, Users,
-  MessageSquare, Plus, Check, Hash, Briefcase, Star,
 
-import { format } from "date-fns";
 
 type Profile = { user_id: string; display_name: string; username: string; email: string; roll_number: string | null; bio: string | null; skills: string[]; interests: string[]; social_links: Array<{ platform: string; url: string; username: string }>; username_change_count: number; college_id: string | null; avatar_url: string | null; profile_visibility: "public" | "private"; };
 type Streak = { current_streak: number; longest_streak: number; total_days_active: number; last_active_date: string | null; };

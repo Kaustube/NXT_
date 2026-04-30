@@ -53,7 +53,6 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 async function loadProfile(uid: string, metadata?: any): Promise<UserProfile | null> {
   try {
-    // Add cache buster query param via a fake filter or just relying on maybeSingle
     const { data: p, error } = await (supabase
       .from("profiles") as any)
       .select("user_id, display_name, username, email, avatar_url, college_id, roll_number, bio, skills, interests, social_links, username_change_count, profile_visibility, public_key, account_type, company_name, company_approved")
@@ -143,30 +142,60 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let mounted = true;
+
     async function initialize() {
-      const safetyTimeout = setTimeout(() => { if (mounted && loading) setLoading(false); }, 10000);
       try {
         const { data: { session: s } } = await supabase.auth.getSession();
         if (s?.user && mounted) {
-          setSession(s); setUser(s.user);
-          const [roleData, profileData] = await Promise.all([checkUserRoles(s.user.id), loadProfile(s.user.id, s.user.user_metadata)]);
-          if (mounted) { applyRoles(roleData); setProfile(profileData); }
+          setSession(s);
+          setUser(s.user);
+          const [roleData, profileData] = await Promise.all([
+            checkUserRoles(s.user.id),
+            loadProfile(s.user.id, s.user.user_metadata)
+          ]);
+          if (mounted) {
+            applyRoles(roleData);
+            setProfile(profileData);
+          }
         }
-      } catch (err) { console.error(err); } finally { if (mounted) { setLoading(false); clearTimeout(safetyTimeout); } }
+      } catch (err) {
+        console.error("Auth init error:", err);
+      } finally {
+        if (mounted) setLoading(false);
+      }
     }
+
     void initialize();
-    const { data: sub } = supabase.auth.onAuthStateChange(async (event, s) => {
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, s) => {
       if (!mounted) return;
-      if (event === 'SIGNED_OUT') {
-        setSession(null); setUser(null); setProfile(null); setRoles(['member']); setIsAdmin(false); setLoading(false); return;
+      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+        if (s?.user) {
+          setSession(s);
+          setUser(s.user);
+          const [roleData, profileData] = await Promise.all([
+            checkUserRoles(s.user.id),
+            loadProfile(s.user.id, s.user.user_metadata)
+          ]);
+          if (mounted) {
+            applyRoles(roleData);
+            setProfile(profileData);
+          }
+        }
+      } else if (event === 'SIGNED_OUT') {
+        setSession(null);
+        setUser(null);
+        setProfile(null);
+        setRoles(['member']);
+        setIsAdmin(false);
       }
-      if (s?.user) {
-        setSession(s); setUser(s.user);
-        const [roleData, profileData] = await Promise.all([checkUserRoles(s.user.id), loadProfile(s.user.id, s.user.user_metadata)]);
-        if (mounted) { applyRoles(roleData); setProfile(profileData); setLoading(false); }
-      }
+      setLoading(false);
     });
-    return () => { mounted = false; sub.subscription.unsubscribe(); };
+
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   const signIn = async (email: string, password: string) => {
@@ -174,9 +203,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (error) return { error: error.message };
     const { data: { session: s } } = await supabase.auth.getSession();
     if (s?.user) {
-      setUser(s.user); setSession(s);
-      const [roleData, profileData] = await Promise.all([checkUserRoles(s.user.id), loadProfile(s.user.id, s.user.user_metadata)]);
-      applyRoles(roleData); setProfile(profileData);
+      setUser(s.user);
+      setSession(s);
+      const [roleData, profileData] = await Promise.all([
+        checkUserRoles(s.user.id),
+        loadProfile(s.user.id, s.user.user_metadata)
+      ]);
+      applyRoles(roleData);
+      setProfile(profileData);
     }
     return { error: null };
   };
