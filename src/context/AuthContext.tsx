@@ -132,10 +132,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setAdminLevel(r.adminLevel); setEmailVerified(r.emailVerified);
   }
 
+  const refreshRoles = async () => {
+    if (user) {
+      const r = await checkUserRoles(user.id);
+      applyRoles(r);
+    }
+  };
+
   const refreshProfile = async () => {
-    if (!user) return;
-    const p = await loadProfile(user.id, user.user_metadata);
-    setProfile(p);
+    if (user) {
+      const p = await loadProfile(user.id, user.user_metadata);
+      setProfile(p);
+    }
   };
 
   const updateProfileState = (data: Partial<UserProfile>) => {
@@ -190,6 +198,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setProfile(null);
         setRoles(['member']);
         setIsAdmin(false);
+        setIsSuperAdmin(false);
       }
       setLoading(false);
     });
@@ -230,7 +239,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   return (
     <AuthContext.Provider value={{
       user, session, profile, loading, isAdmin, isSuperAdmin, isProfessor, isCompany, isCollegeAdmin, isFinanceAdmin,
-      adminLevel, roles, emailVerified, signIn, signUp, signOut, refreshRoles: async () => {}, refreshProfile, updateProfileState,
+      adminLevel, roles, emailVerified, signIn, signUp, signOut, refreshRoles, refreshProfile, updateProfileState,
     }}>
       {children}
     </AuthContext.Provider>

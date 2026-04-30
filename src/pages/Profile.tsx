@@ -2,14 +2,47 @@ import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
+import {
+  X, Camera, Edit3, GraduationCap, Flame, Trophy, Users,
+  MessageSquare, Plus, Check, Hash, Briefcase, Star,
+  Calendar, Globe, Lock, Linkedin, Github, Twitter, Music, Monitor, Link, MessageCircle, Trash2
+} from "lucide-react";
+import { format } from "date-fns";
 
-
-type Profile = { user_id: string; display_name: string; username: string; email: string; roll_number: string | null; bio: string | null; skills: string[]; interests: string[]; social_links: Array<{ platform: string; url: string; username: string }>; username_change_count: number; college_id: string | null; avatar_url: string | null; profile_visibility: "public" | "private"; };
 type Streak = { current_streak: number; longest_streak: number; total_days_active: number; last_active_date: string | null; };
 type Stats = { connections: number; messages: number; events: number; submissions: number; };
 
 export default function ProfilePage() {
+  const { user, profile: ctxProfile, refreshProfile, updateProfileState } = useAuth();
+  const [collegeName, setCollegeName] = useState<string | null>(null);
+  const [editing, setEditing] = useState(false);
+  const [bio, setBio] = useState("");
+  const [displayName, setDisplayName] = useState("");
+  const [skills, setSkills] = useState<string[]>([]);
+  const [interests, setInterests] = useState<string[]>([]);
+  const [socialLinks, setSocialLinks] = useState<Array<{ platform: string; url: string; username: string }>>([]);
+  const [username, setUsername] = useState("");
+  const [streak, setStreak] = useState<Streak | null>(null);
+  const [stats, setStats] = useState<Stats>({ connections: 0, messages: 0, events: 0, submissions: 0 });
+  const [avatarUploading, setAvatarUploading] = useState(false);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [profileVisibility, setProfileVisibility] = useState<"public" | "private">("public");
+  const fileRef = useRef<HTMLInputElement>(null);
 
+  // Sync local editing state with context profile
+  useEffect(() => {
+    if (ctxProfile && !editing) {
+      setBio(ctxProfile.bio ?? "");
+      setDisplayName(ctxProfile.display_name);
+      setUsername(ctxProfile.username ?? "");
+      setSkills(ctxProfile.skills ?? []);
+      setInterests(ctxProfile.interests ?? []);
+      setAvatarUrl(ctxProfile.avatar_url);
+      setProfileVisibility(ctxProfile.profile_visibility ?? "public");
+      setCollegeName(ctxProfile.college_name);
+      setSocialLinks(ctxProfile.social_links ?? []);
+    }
+  }, [ctxProfile, editing]);
 
   useEffect(() => {
     if (!user) return;
@@ -35,8 +68,9 @@ export default function ProfilePage() {
     const usernameChanged = newUsername !== ctxProfile.username;
     
     // Check limits for non-admins
-    const { data: roles } = await supabase.from("user_roles").select("role").eq("user_id", user.id);
-    const isAdmin = roles?.some(r => r.role === 'admin');
+    const { data: rolesData } = await supabase.from("user_roles").select("role").eq("user_id", user.id);
+    const roles = (rolesData ?? []).map(r => r.role);
+    const isAdmin = roles.includes('admin');
 
     if (usernameChanged && !isAdmin && (ctxProfile.username_change_count ?? 0) >= 3) {
       toast.error("You have reached the maximum limit of 3 username changes. Please contact an admin.");
@@ -47,7 +81,6 @@ export default function ProfilePage() {
       bio, skills, interests, profile_visibility: profileVisibility, social_links: socialLinks
     };
 
-    // Only allow name/username changes if admin or under limit
     if (isAdmin) {
       updateData.display_name = displayName;
       updateData.username = newUsername;
