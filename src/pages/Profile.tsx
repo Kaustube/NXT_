@@ -8,7 +8,7 @@ import {
 
 import { format } from "date-fns";
 
-type Profile = { user_id: string; display_name: string; username: string; email: string; roll_number: string | null; bio: string | null; skills: string[]; interests: string[]; social_links: Array<{ platform: string; url: string; username: string }>; college_id: string | null; avatar_url: string | null; profile_visibility: "public" | "private"; };
+type Profile = { user_id: string; display_name: string; username: string; email: string; roll_number: string | null; bio: string | null; skills: string[]; interests: string[]; social_links: Array<{ platform: string; url: string; username: string }>; username_change_count: number; college_id: string | null; avatar_url: string | null; profile_visibility: "public" | "private"; };
 type Streak = { current_streak: number; longest_streak: number; total_days_active: number; last_active_date: string | null; };
 type Stats = { connections: number; messages: number; events: number; submissions: number; };
 
@@ -64,17 +64,42 @@ export default function ProfilePage() {
   }
 
   async function save() {
-    if (!user) return;
+    if (!user || !ctxProfile) return;
     const newUsername = username.trim().toLowerCase();
-    const { error } = await supabase.from("profiles").update({ 
-      bio, skills, interests, display_name: displayName, profile_visibility: profileVisibility, username: newUsername,
-      social_links: socialLinks
-    }).eq("user_id", user.id);
+    const usernameChanged = newUsername !== ctxProfile.username;
     
-    if (error) toast.error(error.message);
-    else {
-      updateProfileState({ display_name: displayName, username: newUsername, bio, skills, interests, social_links: socialLinks });
-      toast.success("Profile updated");
+    // Check limits for non-admins
+    const { data: roles } = await supabase.from("user_roles").select("role").eq("user_id", user.id);
+    const isAdmin = roles?.some(r => r.role === 'admin');
+
+    if (usernameChanged && !isAdmin && (ctxProfile.username_change_count ?? 0) >= 3) {
+      toast.error("You have reached the maximum limit of 3 username changes. Please contact an admin.");
+      return;
+    }
+
+    const updateData: any = { 
+      bio, skills, interests, profile_visibility: profileVisibility, social_links: socialLinks
+    };
+
+    // Only allow name/username changes if admin or under limit
+    if (isAdmin) {
+      updateData.display_name = displayName;
+      updateData.username = newUsername;
+    } else {
+      if (usernameChanged) {
+        updateData.username = newUsername;
+        updateData.username_change_count = (ctxProfile.username_change_count ?? 0) + 1;
+      }
+    }
+
+    const { error } = await supabase.from("profiles").update(updateData).eq("user_id", user.id);
+    
+    if (error) {
+      if (error.code === '23505') toast.error("Username is already taken!");
+      else toast.error(error.message);
+    } else {
+      updateProfileState(updateData);
+      toast.success("Profile updated successfully!");
       setEditing(false);
       void refreshProfile();
     }
@@ -137,15 +162,35 @@ export default function ProfilePage() {
             {editing ? (
               <div className="space-y-4">
                 <div className="space-y-1">
-                  <label className="text-[10px] uppercase font-bold text-muted-foreground ml-1">Display Name</label>
-                  <input value={displayName} onChange={(e) => setDisplayName(e.target.value)} className="w-full text-2xl font-bold bg-[hsl(var(--surface-2))] rounded-xl px-4 py-2 border-none outline-none focus:ring-2 ring-primary/50" />
+                  <label className="text-[10px] uppercase font-bold text-muted-foreground ml-1">Display Name {!(ctxProfile?.account_type === 'admin') && "(Admin Only)"}</label>
+                  <input 
+                    value={displayName} 
+                    disabled={!(ctxProfile?.account_type === 'admin')}
+                    onChange={(e) => setDisplayName(e.target.value)} 
+                    className="w-full text-2xl font-bold bg-[hsl(var(--surface-2))] rounded-xl px-4 py-2 border-none outline-none focus:ring-2 ring-primary/50 disabled:opacity-50 disabled:cursor-not-allowed" 
+                  />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[10px] uppercase font-bold text-muted-foreground ml-1">Username</label>
-                  <div className="flex items-center bg-[hsl(var(--surface-2))] rounded-xl px-4 py-2 ring-primary/50 focus-within:ring-2">
-                    <span className="text-muted-foreground mr-1">@</span>
-                    <input value={username} onChange={(e) => setUsername(e.target.value.toLowerCase())} className="w-full bg-transparent border-none outline-none text-sm font-medium" />
+                  <div className="flex items-center justify-between">
+                    <label className="text-[10px] uppercase font-bold text-muted-foreground ml-1">Username</label>
+                    {!(ctxProfile?.account_type === 'admin') && (
+                      <span className="text-[9px] font-bold text-primary px-2 py-0.5 rounded-full bg-primary/10">
+                        {3 - (ctxProfile?.username_change_count ?? 0)} changes left
+                      </span>
+                    )}
                   </div>
+                  <div className={`flex items-center bg-[hsl(var(--surface-2))] rounded-xl px-4 py-2 ring-primary/50 focus-within:ring-2 ${(!(ctxProfile?.account_type === 'admin') && (ctxProfile?.username_change_count ?? 0) >= 3) ? "opacity-50" : ""}`}>
+                    <span className="text-muted-foreground mr-1">@</span>
+                    <input 
+                      value={username} 
+                      disabled={!(ctxProfile?.account_type === 'admin') && (ctxProfile?.username_change_count ?? 0) >= 3}
+                      onChange={(e) => setUsername(e.target.value.toLowerCase())} 
+                      className="w-full bg-transparent border-none outline-none text-sm font-medium disabled:cursor-not-allowed" 
+                    />
+                  </div>
+                  {!(ctxProfile?.account_type === 'admin') && (ctxProfile?.username_change_count ?? 0) >= 3 && (
+                    <p className="text-[10px] text-destructive font-medium ml-1">Username change limit reached. Contact Admin.</p>
+                  )}
                 </div>
               </div>
             ) : (
