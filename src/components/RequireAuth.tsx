@@ -41,10 +41,7 @@ export function RequireAuth() {
   if (loading) return <LoadingScreen />;
   if (!user) return <Navigate to="/auth" replace state={{ from: location }} />;
 
-  // Redirect to verification page if not verified, except if we are already there
-  if (!emailVerified && location.pathname !== "/verify-email") {
-    return <Navigate to="/verify-email" replace />;
-  }
+
 
   return <Outlet />;
 }

@@ -112,7 +112,7 @@ export default function Auth() {
       return;
     }
     toast.success("Account created. Welcome to NXT.");
-    navigate("/verify-email");
+    navigate("/dashboard");
   }
 
   // ── Forgot: Step 1 — send OTP ──────────────────────────────────────────────
