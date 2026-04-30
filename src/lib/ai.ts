@@ -79,28 +79,47 @@ export async function sendMessage(
   if (userContext?.college) systemPrompt += ` They study at ${userContext.college}.`;
   if (userContext?.department) systemPrompt += ` Their department is ${userContext.department}.`;
 
-  try {
-    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-    const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+  const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
 
-    const response = await fetch(`${supabaseUrl}/functions/v1/ai-chat`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${supabaseKey}`,
-        "apikey": supabaseKey,
+  // If no API key configured, show helpful message
+  if (!apiKey) {
+    return "⚠️ AI assistant is not configured yet. Add VITE_GEMINI_API_KEY to your Vercel environment variables. Get a free key at https://aistudio.google.com/app/apikey";
+  }
+
+  try {
+    const body = {
+      system_instruction: { parts: [{ text: systemPrompt }] },
+      contents: messages.map(m => ({
+        role: m.role === "assistant" ? "model" : "user",
+        parts: [{ text: m.content }],
+      })),
+      generationConfig: {
+        temperature: 0.7,
+        topK: 40,
+        topP: 0.95,
+        maxOutputTokens: 2048,
       },
-      body: JSON.stringify({ messages, systemPrompt }),
+      safetySettings: [
+        { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_MEDIUM_AND_ABOVE" },
+        { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_MEDIUM_AND_ABOVE" },
+      ],
+    };
+
+    const response = await fetch(`${GEMINI_API_URL}?key=${apiKey}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
     });
 
     if (!response.ok) {
       if (response.status === 429) return "⏳ Too many requests. Please wait a moment and try again.";
+      if (response.status === 400) return "❌ Invalid request. Please try rephrasing your question.";
       return "❌ AI service error. Please try again.";
     }
 
     const data = await response.json();
-    if (data.error) return "⚠️ AI is not configured yet. Ask the admin to set up the Gemini API key.";
-    return data.text ?? "I couldn't generate a response. Please try again.";
+    const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+    return text ?? "I couldn't generate a response. Please try again.";
   } catch (err) {
     console.error("AI request failed:", err);
     return "❌ Could not connect to AI service. Check your internet connection.";
