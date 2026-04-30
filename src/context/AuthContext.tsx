@@ -228,11 +228,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
-    const timeout = setTimeout(() => {
-      setLoading(false);
-    }, 4000);
+    let mounted = true;
 
+    async function initialize() {
+      // 1. Check current session immediately
+      const { data: { session: s } } = await supabase.auth.getSession();
+      
+      if (!mounted) return;
+
+      if (s?.user) {
+        setSession(s);
+        setUser(s.user);
+        const [roleData, profileData] = await Promise.all([
+          checkUserRoles(s.user.id),
+          loadProfile(s.user.id),
+        ]);
+        if (mounted) {
+          applyRoles(roleData);
+          setProfile(profileData);
+        }
+      }
+      
+      if (mounted) setLoading(false);
+    }
+
+    void initialize();
+
+    // 2. Listen for auth changes (login/logout/token refresh)
     const { data: sub } = supabase.auth.onAuthStateChange(async (event, s) => {
+      if (!mounted) return;
+
       if (event === 'SIGNED_OUT') {
         setSession(null); setUser(null); setProfile(null);
         setRoles(['member']); setIsAdmin(false); setIsSuperAdmin(false);
@@ -249,35 +274,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           checkUserRoles(s.user.id),
           loadProfile(s.user.id),
         ]);
-        applyRoles(roleData);
-        setProfile(profileData);
-        setLoading(false);
-        clearTimeout(timeout);
+        if (mounted) {
+          applyRoles(roleData);
+          setProfile(profileData);
+          setLoading(false);
+        }
       } else {
-        setLoading(false);
-        clearTimeout(timeout);
+        if (mounted) setLoading(false);
       }
     });
 
-    supabase.auth.getSession().then(async ({ data: { session: s } }) => {
-      if (s?.user) {
-        setSession(s);
-        setUser(s.user);
-        const [roleData, profileData] = await Promise.all([
-          checkUserRoles(s.user.id),
-          loadProfile(s.user.id),
-        ]);
-        applyRoles(roleData);
-        setProfile(profileData);
-      }
-      setLoading(false);
-      clearTimeout(timeout);
-    }).catch(() => {
-      setLoading(false);
-      clearTimeout(timeout);
-    });
-
-    return () => { clearTimeout(timeout); sub.subscription.unsubscribe(); };
+    return () => {
+      mounted = false;
+      sub.subscription.unsubscribe();
+    };
   }, []);
 
   const signIn: AuthContextType["signIn"] = async (email, password) => {
