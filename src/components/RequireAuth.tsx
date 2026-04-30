@@ -6,7 +6,8 @@ function LoadingScreen() {
   const [timedOut, setTimedOut] = useState(false);
 
   useEffect(() => {
-    const t = setTimeout(() => setTimedOut(true), 4000);
+    // Show reload option after 10 seconds of waiting
+    const t = setTimeout(() => setTimedOut(true), 10000);
     return () => clearTimeout(t);
   }, []);
 
@@ -35,13 +36,11 @@ function LoadingScreen() {
 }
 
 export function RequireAuth() {
-  const { user, loading, emailVerified } = useAuth();
+  const { user, loading } = useAuth();
   const location = useLocation();
 
   if (loading) return <LoadingScreen />;
   if (!user) return <Navigate to="/auth" replace state={{ from: location }} />;
-
-
 
   return <Outlet />;
 }
