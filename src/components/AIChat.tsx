@@ -3,7 +3,7 @@ import { useLocation } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { sendMessage, type ChatMessage, type AIContext } from "@/lib/ai";
 import {
-  Sparkles, X, Send, Minimize2, Maximize2,
+  Sparkles, X, Send, Minimize2, GripVertical,
   BookOpen, Code2, Briefcase, Trophy, Building2,
   CalendarDays, ShoppingBag, MessageSquare, ChevronDown,
   RotateCcw, Copy, Check,
@@ -121,6 +121,41 @@ function MessageContent({ content }: { content: string }) {
   );
 }
 
+// ── Draggable position (persists) ─────────────────────────────────────────────
+
+const AI_POS_KEY = "nxt-ai-widget-pos";
+const DEFAULT_POS = { right: 24, bottom: 100 };
+
+function clamp(n: number, lo: number, hi: number) {
+  return Math.min(hi, Math.max(lo, n));
+}
+
+function loadWidgetPos(): { right: number; bottom: number } {
+  try {
+    const raw = localStorage.getItem(AI_POS_KEY);
+    if (raw) {
+      const p = JSON.parse(raw) as { right?: unknown; bottom?: unknown };
+      if (typeof p.right === "number" && typeof p.bottom === "number") {
+        return { right: p.right, bottom: p.bottom };
+      }
+    }
+  } catch {
+    /* ignore */
+  }
+  return DEFAULT_POS;
+}
+
+type DragSession = {
+  pointerId: number;
+  startX: number;
+  startY: number;
+  startR: number;
+  startB: number;
+  dragged: boolean;
+  elW: number;
+  elH: number;
+};
+
 // ── Main component ────────────────────────────────────────────────────────────
 
 export default function AIChat() {
@@ -134,9 +169,84 @@ export default function AIChat() {
   const [loading, setLoading] = useState(false);
   const [manualContext, setManualContext] = useState<AIContext | null>(null);
   const [showContextPicker, setShowContextPicker] = useState(false);
+  const [pos, setPos] = useState(loadWidgetPos);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const dragRef = useRef<DragSession | null>(null);
+
+  const panelW = Math.min(420, typeof window !== "undefined" ? window.innerWidth - 32 : 420);
+  const panelH = Math.min(600, typeof window !== "undefined" ? window.innerHeight - 100 : 600);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(AI_POS_KEY, JSON.stringify(pos));
+    } catch {
+      /* ignore */
+    }
+  }, [pos]);
+
+  function beginDrag(e: React.PointerEvent, elW: number, elH: number) {
+    if (e.button !== 0) return;
+    dragRef.current = {
+      pointerId: e.pointerId,
+      startX: e.clientX,
+      startY: e.clientY,
+      startR: pos.right,
+      startB: pos.bottom,
+      dragged: false,
+      elW,
+      elH,
+    };
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+  }
+
+  function moveDrag(e: React.PointerEvent) {
+    const d = dragRef.current;
+    if (!d || e.pointerId !== d.pointerId) return;
+    const dx = e.clientX - d.startX;
+    const dy = e.clientY - d.startY;
+    if (Math.hypot(dx, dy) > 8) d.dragged = true;
+    if (!d.dragged) return;
+    const margin = 8;
+    setPos({
+      right: clamp(d.startR - dx, margin, window.innerWidth - d.elW - margin),
+      bottom: clamp(d.startB - dy, margin, window.innerHeight - d.elH - margin),
+    });
+  }
+
+  function releaseDrag(e: React.PointerEvent): boolean | undefined {
+    const d = dragRef.current;
+    if (!d || e.pointerId !== d.pointerId) return undefined;
+    try {
+      (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
+    } catch {
+      /* already released */
+    }
+    const wasDrag = d.dragged;
+    dragRef.current = null;
+    return wasDrag;
+  }
+
+  function onFabPointerUp(e: React.PointerEvent) {
+    const wasDrag = releaseDrag(e);
+    if (wasDrag === undefined) return;
+    if (!wasDrag) setOpen(true);
+  }
+
+  function onMinimizedPointerUp(e: React.PointerEvent) {
+    const wasDrag = releaseDrag(e);
+    if (wasDrag === undefined) return;
+    if (!wasDrag) setMinimized(false);
+  }
+
+  function onPanelGripPointerUp(e: React.PointerEvent) {
+    void releaseDrag(e);
+  }
+
+  function onLostPointerCapture() {
+    dragRef.current = null;
+  }
 
   const autoContext = detectContext(location.pathname);
   const context = manualContext ?? autoContext;
@@ -228,44 +338,76 @@ export default function AIChat() {
     }]);
   }
 
+  const shellStyle = { right: pos.right, bottom: pos.bottom };
+
   if (!open) {
     return (
-      <button
-        onClick={() => setOpen(true)}
-        className="fixed bottom-20 md:bottom-6 right-4 md:right-6 z-40 h-14 w-14 rounded-full bg-primary text-primary-foreground shadow-lg shadow-primary/30 grid place-items-center hover:scale-110 transition-all hover:shadow-[0_0_20px_hsl(var(--primary)/0.5)]"
-        title="Open AI Assistant"
-      >
-        <Sparkles className="h-6 w-6" />
-      </button>
+      <div className="fixed z-40 touch-none select-none" style={shellStyle}>
+        <button
+          type="button"
+          title="Open AI assistant — drag to move"
+          onPointerDown={(e) => beginDrag(e, 56, 56)}
+          onPointerMove={moveDrag}
+          onPointerUp={onFabPointerUp}
+          onPointerCancel={onFabPointerUp}
+          onLostPointerCapture={onLostPointerCapture}
+          className="h-14 w-14 rounded-full bg-primary text-primary-foreground shadow-lg shadow-primary/30 grid place-items-center hover:scale-110 transition-transform hover:shadow-[0_0_20px_hsl(var(--primary)/0.5)] cursor-grab active:cursor-grabbing"
+        >
+          <Sparkles className="h-6 w-6 pointer-events-none" />
+        </button>
+      </div>
     );
   }
 
   return (
     <div
-      className={`fixed z-50 transition-all duration-300 ${
-        minimized
-          ? "bottom-20 md:bottom-6 right-4 md:right-6 w-auto"
-          : "bottom-20 md:bottom-6 right-4 md:right-6 w-[calc(100vw-2rem)] md:w-[420px]"
+      className={`fixed z-50 touch-none select-none transition-[width] duration-300 ${
+        minimized ? "w-auto" : "w-[calc(100vw-2rem)] md:w-[420px]"
       }`}
+      style={shellStyle}
     >
       {minimized ? (
         <button
-          onClick={() => setMinimized(false)}
-          className="h-14 px-4 rounded-full bg-primary text-primary-foreground shadow-lg shadow-primary/30 flex items-center gap-2 hover:scale-105 transition-all"
+          type="button"
+          title="Expand — drag to move"
+          onPointerDown={(e) => beginDrag(e, 240, 56)}
+          onPointerMove={moveDrag}
+          onPointerUp={onMinimizedPointerUp}
+          onPointerCancel={onMinimizedPointerUp}
+          onLostPointerCapture={onLostPointerCapture}
+          className="h-14 px-4 rounded-full bg-primary text-primary-foreground shadow-lg shadow-primary/30 flex items-center gap-2 hover:scale-105 transition-transform cursor-grab active:cursor-grabbing max-w-[calc(100vw-2rem)]"
         >
-          <Sparkles className="h-5 w-5" />
-          <span className="text-sm font-semibold">{meta.label}</span>
+          <Sparkles className="h-5 w-5 shrink-0 pointer-events-none" />
+          <span className="text-sm font-semibold truncate">{meta.label}</span>
         </button>
       ) : (
-        <div className="panel flex flex-col shadow-2xl shadow-black/30 overflow-hidden"
-          style={{ height: "min(600px, calc(100dvh - 120px))" }}>
+        <div
+          className="panel flex flex-col shadow-2xl shadow-black/30 overflow-hidden w-full"
+          style={{ height: `min(${panelH}px, calc(100dvh - 120px))` }}
+        >
 
-          {/* Header */}
-          <div className="flex items-center gap-2 px-4 py-3 border-b border-border/50 bg-[hsl(var(--surface-2))] shrink-0">
-            <div className={`h-8 w-8 rounded-lg bg-primary/10 grid place-items-center ${meta.color}`}>
+          {/* Header — drag via grip only so header buttons stay clickable */}
+          <div className="flex items-center gap-1 px-2 py-3 border-b border-border/50 bg-[hsl(var(--surface-2))] shrink-0">
+            <button
+              type="button"
+              title="Drag to move"
+              aria-label="Move AI chat window"
+              onPointerDown={(e) => {
+                e.stopPropagation();
+                beginDrag(e, panelW, panelH);
+              }}
+              onPointerMove={moveDrag}
+              onPointerUp={onPanelGripPointerUp}
+              onPointerCancel={onPanelGripPointerUp}
+              onLostPointerCapture={onLostPointerCapture}
+              className="h-9 w-7 shrink-0 rounded-md grid place-items-center text-muted-foreground hover:text-foreground hover:bg-[hsl(var(--surface-3))] cursor-grab active:cursor-grabbing"
+            >
+              <GripVertical className="h-4 w-4" />
+            </button>
+            <div className={`h-8 w-8 rounded-lg bg-primary/10 grid place-items-center shrink-0 ${meta.color}`}>
               <Icon className="h-4 w-4" />
             </div>
-            <div className="flex-1 min-w-0">
+            <div className="flex-1 min-w-0 pl-0.5">
               <div className="text-sm font-semibold">{meta.label}</div>
               <div className="text-[10px] text-muted-foreground">Powered by Gemini</div>
             </div>

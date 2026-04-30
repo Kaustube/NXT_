@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Settings,
   Volume2,
@@ -9,6 +9,7 @@ import {
   Sun,
   Moon,
   Palette,
+  Sparkles,
 } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Switch } from "@/components/ui/switch";
@@ -19,10 +20,26 @@ import { playNotificationSound } from "@/lib/notificationSounds";
 import { useTheme, ACCENT_THEMES } from "@/context/ThemeContext";
 import { cn } from "@/lib/utils";
 
+const AI_ASSISTANT_PREF_KEY = "nxt-ai-assistant-enabled";
+
 export default function SettingsPanel() {
   const { prefs, updatePrefs, loadingPrefs } = useNotifications();
   const { theme, toggle, accent, setAccent } = useTheme();
   const [open, setOpen] = useState(false);
+  const [aiAssistantOn, setAiAssistantOn] = useState(
+    () => typeof localStorage !== "undefined" && localStorage.getItem(AI_ASSISTANT_PREF_KEY) !== "false",
+  );
+
+  useEffect(() => {
+    if (!open) return;
+    setAiAssistantOn(localStorage.getItem(AI_ASSISTANT_PREF_KEY) !== "false");
+  }, [open]);
+
+  function setAiAssistantPref(enabled: boolean) {
+    localStorage.setItem(AI_ASSISTANT_PREF_KEY, enabled ? "1" : "false");
+    setAiAssistantOn(enabled);
+    window.dispatchEvent(new Event("nxt-ai-assistant-pref-changed"));
+  }
 
   function handleVolumeChange(val: number[]) {
     updatePrefs({ sound_volume: val[0] });
@@ -244,6 +261,27 @@ export default function SettingsPanel() {
               </div>
             </div>
           )}
+        </section>
+
+        <Separator className="mb-6" />
+
+        {/* AI assistant */}
+        <section className="mb-6">
+          <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">
+            AI assistant
+          </h3>
+          <div className="flex items-center justify-between py-1">
+            <div className="flex items-center gap-2">
+              <Sparkles className="h-4 w-4 text-primary" />
+              <div>
+                <p className="text-sm font-medium">Campus AI chat</p>
+                <p className="text-xs text-muted-foreground">
+                  Show the floating assistant. Drag its button or the grip (⋮⋮) when open to move it.
+                </p>
+              </div>
+            </div>
+            <Switch checked={aiAssistantOn} onCheckedChange={setAiAssistantPref} />
+          </div>
         </section>
 
         <Separator className="mb-6" />

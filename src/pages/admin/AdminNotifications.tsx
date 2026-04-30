@@ -26,9 +26,11 @@ export default function AdminNotifications() {
 
   async function load() {
     setLoading(true);
+    // Only server (channel) activity and admin broadcasts — never DMs or friend flows (private / not server chat).
     const { data: n } = await supabase
       .from("notifications")
       .select("*")
+      .in("type", ["channel_message", "admin_broadcast"])
       .order("created_at", { ascending: false })
       .limit(100);
 
@@ -56,7 +58,7 @@ export default function AdminNotifications() {
 
     const rows = profiles.map((p: any) => ({
       user_id: p.user_id,
-      type: "dm" as const,
+      type: "admin_broadcast" as const,
       title: broadcastTitle.trim(),
       body: broadcastBody.trim() || null,
     }));
@@ -79,10 +81,17 @@ export default function AdminNotifications() {
   }
 
   async function clearAll() {
-    if (!confirm("Delete all notifications? This cannot be undone.")) return;
-    await supabase.from("notifications").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+    if (!confirm("Delete all server & announcement notifications shown here? User DMs are not included.")) return;
+    const { error } = await supabase
+      .from("notifications")
+      .delete()
+      .in("type", ["channel_message", "admin_broadcast"]);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
     setNotifs([]);
-    toast.success("All notifications cleared");
+    toast.success("Server & announcement notifications cleared");
   }
 
   const unread = notifs.filter((n) => !n.read).length;
@@ -92,7 +101,9 @@ export default function AdminNotifications() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">Notifications</h1>
-          <p className="text-muted-foreground text-sm mt-1">{notifs.length} total · {unread} unread</p>
+          <p className="text-muted-foreground text-sm mt-1">
+            {notifs.length} total · {unread} unread · server &amp; announcements only (DMs hidden)
+          </p>
         </div>
         {notifs.length > 0 && (
           <button onClick={clearAll} className="h-9 px-4 rounded-lg border border-destructive/50 text-destructive text-sm font-medium flex items-center gap-2 hover:bg-destructive/10">

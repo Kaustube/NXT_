@@ -50,9 +50,19 @@ export default function AppLayout() {
   const location = useLocation();
   const [exploreOpen, setExploreOpen] = useState(false);
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
+  const [aiAssistantEnabled, setAiAssistantEnabled] = useState(() =>
+    typeof localStorage !== "undefined" && localStorage.getItem("nxt-ai-assistant-enabled") !== "false",
+  );
 
   // Close mobile drawer on route change
   useEffect(() => { setMobileDrawerOpen(false); }, [location.pathname]);
+
+  useEffect(() => {
+    const sync = () =>
+      setAiAssistantEnabled(localStorage.getItem("nxt-ai-assistant-enabled") !== "false");
+    window.addEventListener("nxt-ai-assistant-pref-changed", sync);
+    return () => window.removeEventListener("nxt-ai-assistant-pref-changed", sync);
+  }, []);
 
   const initials = profile?.display_name
     ? profile.display_name.split(" ").map(w => w[0]).slice(0, 2).join("").toUpperCase()
@@ -164,8 +174,8 @@ export default function AppLayout() {
           <Outlet />
         </main>
 
-        {/* ── AI Chat (floating, available on all pages) ── */}
-        <AIChat />
+        {/* ── AI Chat (floating; can be hidden in Settings) ── */}
+        {aiAssistantEnabled && <AIChat />}
 
         {/* ── Mobile bottom nav ── */}
         <nav className="md:hidden fixed bottom-0 left-0 right-0 z-30 grid grid-cols-5 border-t border-border/50 bg-[hsl(var(--sidebar-background))] mobile-nav">

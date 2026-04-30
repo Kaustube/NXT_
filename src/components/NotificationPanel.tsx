@@ -1,6 +1,6 @@
 import { useRef, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Bell, Check, MessageSquare, Hash, UserPlus, UserCheck, Trash2, X } from "lucide-react";
+import { Bell, Check, MessageSquare, Hash, UserPlus, UserCheck, Trash2, X, Megaphone } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { useNotifications, Notification, NotificationType } from "@/context/NotificationContext";
 import { cn } from "@/lib/utils";
@@ -11,6 +11,8 @@ function NotifIcon({ type }: { type: NotificationType }) {
       return <MessageSquare className="h-4 w-4 text-blue-400" />;
     case "channel_message":
       return <Hash className="h-4 w-4 text-green-400" />;
+    case "admin_broadcast":
+      return <Megaphone className="h-4 w-4 text-violet-400" />;
     case "friend_request":
       return <UserPlus className="h-4 w-4 text-yellow-400" />;
     case "friend_accepted":
@@ -34,6 +36,8 @@ function NotifItem({
       navigate("/messages");
     } else if (notif.type === "channel_message") {
       navigate("/servers");
+    } else if (notif.type === "admin_broadcast") {
+      navigate("/dashboard");
     } else if (notif.type === "friend_request" || notif.type === "friend_accepted") {
       navigate("/network");
     }

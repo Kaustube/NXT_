@@ -11,7 +11,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
 import { playNotificationSound, NotifSoundType } from "@/lib/notificationSounds";
 
-export type NotificationType = "dm" | "channel_message" | "friend_request" | "friend_accepted";
+export type NotificationType =
+  | "dm"
+  | "channel_message"
+  | "friend_request"
+  | "friend_accepted"
+  | "admin_broadcast";
 
 export type Notification = {
   id: string;
@@ -129,7 +134,11 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
           const p = prefsRef.current;
           if (!p.sound_enabled) return;
           if (notif.type === "dm" && !p.dm_notifications) return;
-          if (notif.type === "channel_message" && !p.channel_notifications) return;
+          if (
+            (notif.type === "channel_message" || notif.type === "admin_broadcast") &&
+            !p.channel_notifications
+          )
+            return;
           if (
             (notif.type === "friend_request" || notif.type === "friend_accepted") &&
             !p.friend_notifications

@@ -113,7 +113,12 @@ export function playFriendAcceptedSound(volume = 80) {
   );
 }
 
-export type NotifSoundType = "dm" | "channel_message" | "friend_request" | "friend_accepted";
+export type NotifSoundType =
+  | "dm"
+  | "channel_message"
+  | "friend_request"
+  | "friend_accepted"
+  | "admin_broadcast";
 
 export function playNotificationSound(type: NotifSoundType, volume = 80) {
   switch (type) {
@@ -121,6 +126,7 @@ export function playNotificationSound(type: NotifSoundType, volume = 80) {
       playDmSound(volume);
       break;
     case "channel_message":
+    case "admin_broadcast":
       playChannelSound(volume);
       break;
     case "friend_request":
@@ -128,6 +134,8 @@ export function playNotificationSound(type: NotifSoundType, volume = 80) {
       break;
     case "friend_accepted":
       playFriendAcceptedSound(volume);
+      break;
+    default:
       break;
   }
 }

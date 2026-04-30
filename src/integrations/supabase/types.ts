@@ -774,7 +774,12 @@ export type Database = {
       connection_status: "pending" | "accepted" | "declined"
       event_kind: "hackathon" | "codeathon" | "challenge"
       listing_category: "buy" | "sell" | "rent"
-      notification_type: "dm" | "channel_message" | "friend_request" | "friend_accepted"
+      notification_type:
+        | "dm"
+        | "channel_message"
+        | "friend_request"
+        | "friend_accepted"
+        | "admin_broadcast"
       server_kind: "college" | "global"
     }
     CompositeTypes: {
@@ -909,7 +914,13 @@ export const Constants = {
       connection_status: ["pending", "accepted", "declined"],
       event_kind: ["hackathon", "codeathon", "challenge"],
       listing_category: ["buy", "sell", "rent"],
-      notification_type: ["dm", "channel_message", "friend_request", "friend_accepted"],
+      notification_type: [
+        "dm",
+        "channel_message",
+        "friend_request",
+        "friend_accepted",
+        "admin_broadcast",
+      ],
       server_kind: ["college", "global"],
     },
   },
