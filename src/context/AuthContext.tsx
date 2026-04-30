@@ -153,58 +153,57 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let mounted = true;
 
-    async function initialize() {
-      try {
-        const { data: { session: s } } = await supabase.auth.getSession();
-        if (s?.user && mounted) {
-          setSession(s);
-          setUser(s.user);
-          const [roleData, profileData] = await Promise.all([
-            checkUserRoles(s.user.id),
-            loadProfile(s.user.id, s.user.user_metadata)
-          ]);
-          if (mounted) {
-            applyRoles(roleData);
-            setProfile(profileData);
-          }
-        }
-      } catch (err) {
-        console.error("Auth init error:", err);
-      } finally {
-        if (mounted) setLoading(false);
-      }
-    }
-
-    void initialize();
-
+    // Single source of truth: only use onAuthStateChange
+    // Do NOT call getSession() separately — it races with INITIAL_SESSION
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, s) => {
       if (!mounted) return;
-      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+
+      if (event === 'INITIAL_SESSION' || event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
         if (s?.user) {
           setSession(s);
           setUser(s.user);
-          const [roleData, profileData] = await Promise.all([
-            checkUserRoles(s.user.id),
-            loadProfile(s.user.id, s.user.user_metadata)
-          ]);
+          try {
+            const [roleData, profileData] = await Promise.all([
+              checkUserRoles(s.user.id),
+              loadProfile(s.user.id, s.user.user_metadata)
+            ]);
+            if (mounted) {
+              applyRoles(roleData);
+              setProfile(profileData);
+            }
+          } catch (err) {
+            console.error("Profile load error:", err);
+          }
+        } else {
+          // No session on INITIAL_SESSION means user is logged out
           if (mounted) {
-            applyRoles(roleData);
-            setProfile(profileData);
+            setSession(null);
+            setUser(null);
+            setProfile(null);
           }
         }
+        if (mounted) setLoading(false);
       } else if (event === 'SIGNED_OUT') {
-        setSession(null);
-        setUser(null);
-        setProfile(null);
-        setRoles(['member']);
-        setIsAdmin(false);
-        setIsSuperAdmin(false);
+        if (mounted) {
+          setSession(null);
+          setUser(null);
+          setProfile(null);
+          setRoles(['member']);
+          setIsAdmin(false);
+          setIsSuperAdmin(false);
+          setLoading(false);
+        }
       }
-      setLoading(false);
     });
+
+    // Safety timeout — never stay loading more than 4 seconds
+    const timeout = setTimeout(() => {
+      if (mounted) setLoading(false);
+    }, 4000);
 
     return () => {
       mounted = false;
+      clearTimeout(timeout);
       subscription.unsubscribe();
     };
   }, []);

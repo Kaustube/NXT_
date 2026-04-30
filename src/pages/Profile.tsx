@@ -101,10 +101,21 @@ export default function ProfilePage() {
       if (error.code === '23505') toast.error("Username is already taken!");
       else toast.error(error.message);
     } else {
-      updateProfileState(updateData);
+      // Update context immediately so sidebar/header reflect changes without waiting for DB round-trip
+      const immediateUpdate: Partial<typeof ctxProfile> = {
+        bio,
+        skills,
+        interests,
+        profile_visibility: profileVisibility,
+        social_links: socialLinks,
+        display_name: isAdmin ? displayName : ctxProfile.display_name,
+        username: updateData.username ?? ctxProfile.username,
+      };
+      updateProfileState(immediateUpdate as any);
       toast.success("Profile updated successfully!");
       setEditing(false);
-      void refreshProfile();
+      // Also do a background refresh to sync any server-side changes
+      setTimeout(() => void refreshProfile(), 500);
     }
   }
 
