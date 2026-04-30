@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 import {
   Sparkles, ArrowRight, Zap, Shield, Users, MessageSquare,
   Trophy, Code, BookOpen, Rocket, Heart, Instagram, Mail,
+  ShieldCheck,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import Logo from "@/components/Logo";
