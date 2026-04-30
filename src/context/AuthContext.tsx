@@ -85,7 +85,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 // ── Profile loader ────────────────────────────────────────────────────────────
 
-async function loadProfile(uid: string): Promise<UserProfile | null> {
+async function loadProfile(uid: string, metadata?: any): Promise<UserProfile | null> {
   try {
     const { data: p, error } = await (supabase
       .from("profiles") as any)
@@ -93,7 +93,31 @@ async function loadProfile(uid: string): Promise<UserProfile | null> {
       .eq("user_id", uid)
       .maybeSingle();
 
-    if (error || !p) return null;
+    if (error || !p) {
+      // Fallback to metadata if DB row is missing (e.g. right after signup)
+      if (metadata) {
+        return {
+          user_id: uid,
+          display_name: metadata.display_name || "",
+          username: metadata.username || "user",
+          email: "",
+          avatar_url: null,
+          college_id: metadata.college_id || null,
+          college_name: null,
+          college_short_code: null,
+          roll_number: metadata.roll_number || null,
+          bio: null,
+          skills: [],
+          interests: [],
+          profile_visibility: "public",
+          public_key: null,
+          account_type: metadata.account_type || "student",
+          company_name: metadata.company_name || null,
+          company_approved: false,
+        };
+      }
+      return null;
+    }
 
     let college_name: string | null = null;
     let college_short_code: string | null = null;
@@ -224,7 +248,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const refreshProfile = async () => {
     if (!user) return;
-    setProfile(await loadProfile(user.id));
+    setProfile(await loadProfile(user.id, user.user_metadata));
   };
 
   useEffect(() => {
@@ -249,7 +273,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setUser(s.user);
           const [roleData, profileData] = await Promise.all([
             checkUserRoles(s.user.id),
-            loadProfile(s.user.id),
+            loadProfile(s.user.id, s.user.user_metadata),
           ]);
           if (mounted) {
             applyRoles(roleData);
@@ -286,7 +310,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(s.user);
         const [roleData, profileData] = await Promise.all([
           checkUserRoles(s.user.id),
-          loadProfile(s.user.id),
+          loadProfile(s.user.id, s.user.user_metadata),
         ]);
         if (mounted) {
           applyRoles(roleData);
@@ -315,7 +339,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSession(s);
       const [roleData, profileData] = await Promise.all([
         checkUserRoles(s.user.id),
-        loadProfile(s.user.id),
+        loadProfile(s.user.id, s.user.user_metadata),
       ]);
       applyRoles(roleData);
       setProfile(profileData);
