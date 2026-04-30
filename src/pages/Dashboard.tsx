@@ -8,11 +8,7 @@ import {
   Server, Gamepad2, BookOpen, ShoppingBag, Building2,
 } from "lucide-react";
 import { toast } from "sonner";
-import {
-  format, startOfMonth, endOfMonth, eachDayOfInterval,
-  isSameDay, isSameMonth, addMonths, subMonths, isPast, isToday,
-} from "date-fns";
-import { useNavigate, Link } from "react-router-dom";
+
 type Task = {
   id: string;
   title: string;
@@ -403,15 +399,7 @@ export default function Dashboard() {
                         : "text-muted-foreground/40"
                     }`}
                   >
-                    {format(d, "d")}
-                    {hasTask && !today && (
-                      <span className="absolute bottom-0.5 left-1/2 -translate-x-1/2 h-1 w-1 rounded-full bg-primary" />
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
+
 
           {/* Trophy / streak card */}
           <div className="panel p-5">
