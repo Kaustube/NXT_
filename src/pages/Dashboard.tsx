@@ -3,7 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
 import { RequestListingAccessDialog } from "@/components/RequestListingAccessDialog";
-import { WellnessTracker } from "@/components/WellnessTracker";
+import WellnessTracker from "@/components/WellnessTracker";
 import {
   Plus, Check, Trash2, Flame, CalendarDays,
   Users, MessageSquare, Trophy, ArrowRight,
